@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { useDraggable } from '@dnd-kit/core';
@@ -8,7 +7,7 @@ import type { Status, Task } from '@/lib/types';
 import { STATUSES } from '@/lib/types';
 import { formatDueDate } from '@/lib/format';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
+import { STATUS_STYLES } from './status-styles';
 
 interface TaskCardProps {
   task: Task;
@@ -47,32 +46,49 @@ export function TaskCard({ task, onMove, onEdit, onDelete, overlay = false }: Ta
       // No transform here: the dragged card stays in place at reduced opacity
       // while the DragOverlay renders the copy that follows the cursor.
       className={clsx(
-        'group relative rounded-lg border border-border bg-surface p-3 shadow-sm',
-        // touch-none: without it the browser treats a touch drag as a scroll and
+        'group relative overflow-hidden rounded-lg border border-border bg-surface py-3 pl-4 pr-3 shadow-sm',
+        'transition-[box-shadow,border-color,transform] duration-150',
+        // touch-none: without it the browser claims a touch drag as a scroll and
         // the PointerSensor never activates.
-        !overlay && 'cursor-grab touch-none',
+        !overlay && 'cursor-grab touch-none hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md',
         isDragging && 'opacity-40',
-        overlay && 'rotate-1 cursor-grabbing shadow-lg'
+        // The floating copy: lifted off the board and tilted, so it reads as
+        // "in your hand" rather than "part of a column".
+        overlay && 'rotate-2 cursor-grabbing shadow-lg ring-2 ring-primary'
       )}
     >
-      <p className="pr-7 text-sm font-medium text-text">{task.title}</p>
+      {/* The card's status stripe, matching its column's accent bar. */}
+      <span
+        aria-hidden="true"
+        className={clsx('absolute inset-y-0 left-0 w-1', STATUS_STYLES[task.status].bar)}
+      />
+
+      <p className="pr-6 text-sm font-medium leading-snug text-text">{task.title}</p>
 
       {(task.assignee || task.dueDate) && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-          {task.assignee ? (
-            <span className="flex items-center gap-1.5 text-xs text-text-muted">
-              <Avatar name={task.assignee.name} />
-              {task.assignee.name}
-            </span>
-          ) : null}
-
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2">
           {task.dueDate && (
             /* isOverdue is computed by the server; we render it, never re-derive it. */
-            <Badge tone={task.isOverdue ? 'danger' : 'neutral'}>
+            <span
+              className={clsx(
+                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                task.isOverdue
+                  ? 'bg-danger-soft text-danger-fg'
+                  : 'bg-surface-muted text-text-muted'
+              )}
+            >
               {task.isOverdue && <span className="sr-only">Overdue: </span>}
-              <span aria-hidden="true">📅</span>
+              <span aria-hidden="true">{task.isOverdue ? '⚠' : '📅'}</span>
               {formatDueDate(task.dueDate)}
-            </Badge>
+            </span>
+          )}
+
+          {task.assignee && (
+            /* Pushed right, the way every board app parks the assignee. */
+            <span className="ml-auto flex items-center gap-1.5 text-xs text-text-muted">
+              <Avatar name={task.assignee.name} />
+              <span className="max-w-24 truncate">{task.assignee.name}</span>
+            </span>
           )}
         </div>
       )}
@@ -134,7 +150,14 @@ function TaskMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`Actions for ${task.title}`}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-text-subtle hover:bg-surface-muted hover:text-text"
+        className={clsx(
+          'flex h-7 w-7 items-center justify-center rounded-md text-text-subtle transition-colors',
+          'hover:bg-surface-muted hover:text-text',
+          // Kept out of the way until the card is hovered or the menu is open —
+          // but always focusable, so keyboard users never lose it.
+          'opacity-0 focus-visible:opacity-100 group-hover:opacity-100',
+          open && 'bg-surface-muted text-text opacity-100'
+        )}
       >
         <span aria-hidden="true">⋮</span>
       </button>
@@ -143,7 +166,7 @@ function TaskMenu({
         <div
           role="menu"
           aria-label={`Actions for ${task.title}`}
-          className="absolute right-0 top-8 z-dropdown w-44 animate-scale-in overflow-hidden rounded-md border border-border bg-surface-raised py-1 shadow-lg"
+          className="absolute right-0 top-8 z-dropdown w-44 animate-scale-in overflow-hidden rounded-lg border border-border bg-surface-raised py-1 shadow-lg"
         >
           <p className="px-3 py-1 text-xs font-medium uppercase tracking-wide text-text-subtle">
             Move to
@@ -157,8 +180,12 @@ function TaskMenu({
                 setOpen(false);
                 onMove(task.id, status);
               }}
-              className="block w-full px-3 py-1.5 text-left text-sm text-text hover:bg-surface-muted"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-text hover:bg-surface-muted"
             >
+              <span
+                aria-hidden="true"
+                className={clsx('h-2 w-2 shrink-0 rounded-full', STATUS_STYLES[status].dot)}
+              />
               {status}
             </button>
           ))}

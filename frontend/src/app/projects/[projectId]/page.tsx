@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import clsx from 'clsx';
 import { useParams } from 'next/navigation';
 import {
   DndContext,
@@ -26,6 +27,7 @@ import { useToast } from '@/lib/toast-context';
 import { RequireAuth } from '@/components/layout/RequireAuth';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { BoardColumn } from '@/components/board/BoardColumn';
+import { STATUS_STYLES } from '@/components/board/status-styles';
 import { TaskCard } from '@/components/board/TaskCard';
 import { TaskFormModal } from '@/components/board/TaskFormModal';
 import { DeleteTaskDialog } from '@/components/board/DeleteTaskDialog';
@@ -204,15 +206,28 @@ function BoardView() {
 
       {state.phase === 'ready' && (
         <>
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight text-text sm:text-2xl">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-text sm:text-2xl">
                 {state.data.project.name}
               </h1>
-              <p className="mt-1 text-sm text-text-muted">
-                {totalTasks(state.data.board)} task
-                {totalTasks(state.data.board) === 1 ? '' : 's'} on this board
-              </p>
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-text-muted">
+                <span>
+                  {totalTasks(state.data.board)} task
+                  {totalTasks(state.data.board) === 1 ? '' : 's'}
+                </span>
+                {/* A per-column tally, so the board's shape reads before you scan it. */}
+                {STATUSES.map((status) => (
+                  <span key={status} className="flex items-center gap-1.5 text-xs">
+                    <span
+                      aria-hidden="true"
+                      className={clsx('h-1.5 w-1.5 rounded-full', STATUS_STYLES[status].dot)}
+                    />
+                    {state.data.board[status].length} {status}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -225,7 +240,7 @@ function BoardView() {
                   setFormOpen(true);
                 }}
               >
-                Add task
+                <span aria-hidden="true">+</span> Add task
               </Button>
             </div>
           </div>
@@ -255,7 +270,7 @@ function BoardView() {
               onDragCancel={() => setDraggingTask(null)}
             >
               {/* Mobile-first: columns stack on a phone and sit side-by-side from md up. */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
+              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3 md:gap-5">
                 {STATUSES.map((status) => (
                   <BoardColumn
                     key={status}
@@ -267,6 +282,15 @@ function BoardView() {
                       setFormOpen(true);
                     }}
                     onDelete={setDeletingTask}
+                    // Quick-add only on 'To Do' — the backend lands every new task there.
+                    onAdd={
+                      status === 'To Do'
+                        ? () => {
+                            setEditingTask(null);
+                            setFormOpen(true);
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
