@@ -18,9 +18,13 @@ const config: Config = {
       surface: 'var(--color-surface)',
       'surface-muted': 'var(--color-surface-muted)',
       'surface-raised': 'var(--color-surface-raised)',
+      elevated: 'var(--color-elevated)',
+      glass: 'var(--glass-bg)',
+      'glass-strong': 'var(--glass-bg-strong)',
 
       border: 'var(--color-border)',
       'border-strong': 'var(--color-border-strong)',
+      'glass-border': 'var(--glass-border)',
 
       text: 'var(--color-text)',
       'text-muted': 'var(--color-text-muted)',
@@ -32,6 +36,10 @@ const config: Config = {
       'primary-soft': 'var(--color-primary-soft)',
       'primary-fg': 'var(--color-primary-fg)',
       'primary-on-soft': 'var(--color-primary-on-soft)',
+
+      accent: 'var(--color-accent)',
+      'accent-soft': 'var(--color-accent-soft)',
+      'accent-fg': 'var(--color-accent-fg)',
 
       success: 'var(--color-success)',
       'success-soft': 'var(--color-success-soft)',
@@ -59,11 +67,25 @@ const config: Config = {
         md: 'var(--radius-md)',
         lg: 'var(--radius-lg)',
         xl: 'var(--radius-xl)',
+        '2xl': 'var(--radius-2xl)',
       },
       boxShadow: {
         sm: 'var(--shadow-sm)',
         md: 'var(--shadow-md)',
         lg: 'var(--shadow-lg)',
+        glass: 'var(--shadow-glass)',
+        glow: 'var(--shadow-glow)',
+      },
+      backgroundImage: {
+        'gradient-brand': 'var(--gradient-brand)',
+        'gradient-brand-soft': 'var(--gradient-brand-soft)',
+        'gradient-surface': 'var(--gradient-surface)',
+      },
+      backdropBlur: {
+        glass: 'var(--blur-glass)',
+      },
+      transitionTimingFunction: {
+        premium: 'var(--ease-out)',
       },
       zIndex: {
         dropdown: 'var(--z-dropdown)',

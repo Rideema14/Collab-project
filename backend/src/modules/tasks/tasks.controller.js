@@ -3,8 +3,9 @@ const service = require('./tasks.service');
 
 const createTask = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const { title, assigneeId, dueDate } = req.body || {};
-  const task = await service.createTask({ projectId, title, assigneeId, dueDate });
+  // `status` is optional (custom status system); omit it to default to 'To Do'.
+  const { title, status, assigneeId, dueDate } = req.body || {};
+  const task = await service.createTask({ projectId, title, status, assigneeId, dueDate });
   res.status(201).json({ success: true, data: task });
 });
 

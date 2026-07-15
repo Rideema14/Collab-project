@@ -22,22 +22,22 @@ export const THEME_INIT_SCRIPT = `
 (function () {
   try {
     var stored = localStorage.getItem('${STORAGE_KEY}');
-    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var theme = stored === 'light' || stored === 'dark' ? stored : (prefersDark ? 'dark' : 'light');
+    // Dark-mode first: default to dark unless the user explicitly chose light.
+    var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {
-    document.documentElement.setAttribute('data-theme', 'light');
+    document.documentElement.setAttribute('data-theme', 'dark');
   }
 })();
 `;
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Mirrors whatever THEME_INIT_SCRIPT already wrote to the DOM.
-  const [theme, setTheme] = useState<Theme>('light');
+  // Mirrors whatever THEME_INIT_SCRIPT already wrote to the DOM (dark-first).
+  const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
     const current = document.documentElement.getAttribute('data-theme');
-    setTheme(current === 'dark' ? 'dark' : 'light');
+    setTheme(current === 'light' ? 'light' : 'dark');
   }, []);
 
   const toggleTheme = useCallback(() => {

@@ -22,12 +22,13 @@ async function findAllByProject(projectId) {
   return rows;
 }
 
-async function create({ projectId, title, assigneeId, dueDate }) {
+async function create({ projectId, title, status, assigneeId, dueDate }) {
+  // status is optional; the column default ('To Do') applies when it's null.
   const { rows } = await pool.query(
     `INSERT INTO tasks (project_id, title, status, assignee_id, due_date)
-     VALUES ($1, $2, 'To Do', $3, $4)
+     VALUES ($1, $2, COALESCE($3, 'To Do'), $4, $5)
      RETURNING id`,
-    [projectId, title, assigneeId ?? null, dueDate ?? null]
+    [projectId, title, status ?? null, assigneeId ?? null, dueDate ?? null]
   );
   return findById(rows[0].id);
 }

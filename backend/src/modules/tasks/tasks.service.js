@@ -24,7 +24,21 @@ function blankToNull(value) {
   return value === '' ? null : value;
 }
 
-async function createTask({ projectId, title, assigneeId, dueDate }) {
+// v2: statuses are now free-form (custom status system). A status is any non-empty
+// string up to 60 chars — matching the widened tasks.status VARCHAR(60) column.
+const MAX_STATUS_LEN = 60;
+function validateStatus(status) {
+  if (typeof status !== 'string' || !status.trim()) {
+    throw new ApiError(400, 'Status is required');
+  }
+  const trimmed = status.trim();
+  if (trimmed.length > MAX_STATUS_LEN) {
+    throw new ApiError(400, `Status must be ${MAX_STATUS_LEN} characters or fewer`);
+  }
+  return trimmed;
+}
+
+async function createTask({ projectId, title, status, assigneeId, dueDate }) {
   await projectsService.getProjectOrThrow(projectId);
 
   if (!title || !title.trim()) {
@@ -34,6 +48,8 @@ async function createTask({ projectId, title, assigneeId, dueDate }) {
   const row = await repository.create({
     projectId,
     title: title.trim(),
+    // Optional. When absent the column default ('To Do') applies.
+    status: status === undefined || status === null || status === '' ? null : validateStatus(status),
     assigneeId: blankToNull(assigneeId),
     dueDate: blankToNull(dueDate),
   });
@@ -41,8 +57,12 @@ async function createTask({ projectId, title, assigneeId, dueDate }) {
 }
 
 /**
- * Returns every task for a project pre-grouped into the three fixed columns,
- * exactly what the board screen renders.
+ * Returns every task for a project grouped by status.
+ *
+ * Statuses are dynamic now, so columns are built from the data. The three legacy
+ * keys ('To Do', 'In Progress', 'Done') are ALWAYS present (even when empty) so
+ * older clients that read exactly those keys keep working unchanged; any custom
+ * status simply appears as an additional key that legacy clients ignore.
  */
 async function getBoard(projectId) {
   await projectsService.getProjectOrThrow(projectId);
@@ -50,16 +70,14 @@ async function getBoard(projectId) {
   const rows = await repository.findAllByProject(projectId);
   const board = { 'To Do': [], 'In Progress': [], Done: [] };
   for (const row of rows) {
-    board[row.status].push(shapeTask(row));
+    (board[row.status] ??= []).push(shapeTask(row));
   }
   return board;
 }
 
 async function updateTaskStatus(taskId, status) {
-  if (!repository.STATUSES.includes(status)) {
-    throw new ApiError(400, `Status must be one of: ${repository.STATUSES.join(', ')}`);
-  }
-  const row = await repository.updateStatus(taskId, status);
+  const clean = validateStatus(status);
+  const row = await repository.updateStatus(taskId, clean);
   if (!row) throw new ApiError(404, 'Task not found');
   return shapeTask(row);
 }

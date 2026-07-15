@@ -7,7 +7,7 @@ import { projectsApi } from '@/lib/api/endpoints';
 import type { Project } from '@/lib/types';
 import { useToast } from '@/lib/toast-context';
 import { RequireAuth } from '@/components/layout/RequireAuth';
-import { AppHeader } from '@/components/layout/AppHeader';
+import { AppShell, PROJECTS_CHANGED_EVENT } from '@/components/shell/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Field, Input } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
@@ -21,8 +21,9 @@ type LoadState =
 export default function ProjectsPage() {
   return (
     <RequireAuth>
-      <AppHeader />
-      <ProjectsView />
+      <AppShell>
+        <ProjectsView />
+      </AppShell>
     </RequireAuth>
   );
 }
@@ -62,6 +63,8 @@ function ProjectsView() {
     // create response isn't list-shaped. Refetch instead of patching state
     // with a half-populated record.
     await load();
+    // Tell the shell (sidebar + command palette) to refresh its project list too.
+    window.dispatchEvent(new Event(PROJECTS_CHANGED_EVENT));
   }
 
   return (

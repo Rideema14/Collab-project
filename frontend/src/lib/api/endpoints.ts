@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { AuthPayload, Board, Project, Status, Task, User, VoiceParseResult } from '../types';
+import type { AuthPayload, Board, Project, Task, User, VoiceParseResult } from '../types';
 
 /**
  * Every backend route, in one place. Nothing outside this file constructs a URL.
@@ -60,11 +60,16 @@ export const tasksApi = {
    */
   create: (
     projectId: number,
-    input: { title: string; assigneeId: number | null; dueDate: string | null }
+    input: { title: string; assigneeId: number | null; dueDate: string | null; status?: string }
   ) => api.post<Task>(`/api/projects/${projectId}/tasks`, input),
 
-  /** PATCH /api/tasks/:taskId/status -> the move-between-columns endpoint. */
-  updateStatus: (taskId: number, status: Status) =>
+  /**
+   * PATCH /api/tasks/:taskId/status -> the move-between-columns endpoint.
+   * Status is a free string now (backend column is VARCHAR(60)); any custom
+   * status name persists. `Status` (the legacy 3) is a subtype of string, so
+   * existing callers are unaffected.
+   */
+  updateStatus: (taskId: number, status: string) =>
     api.patch<Task>(`/api/tasks/${taskId}/status`, { status }),
 
   /**

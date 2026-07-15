@@ -38,6 +38,11 @@ export function setAuthToken(token: string | null): void {
   authToken = token;
 }
 
+/** Read the current token — used by the RTK Query baseQuery, which shares this source of truth. */
+export function getAuthToken(): string | null {
+  return authToken;
+}
+
 /** Lets AuthProvider log the user out when the backend rejects an expired token. */
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler;

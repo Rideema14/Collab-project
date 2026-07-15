@@ -28,6 +28,11 @@ export function totalTasks(board: Board): number {
   return STATUSES.reduce((sum, status) => sum + board[status].length, 0);
 }
 
+/** Every task on the board as a single list, in column then insertion order. */
+export function allTasks(board: Board): Task[] {
+  return STATUSES.flatMap((status) => board[status]);
+}
+
 /** New tasks always land in 'To Do' — the backend hardcodes that on insert. */
 export function addTask(board: Board, task: Task): Board {
   return { ...board, [task.status]: [...board[task.status], task] };

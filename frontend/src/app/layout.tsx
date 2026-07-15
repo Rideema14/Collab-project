@@ -3,6 +3,10 @@ import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth-context';
 import { ThemeProvider, THEME_INIT_SCRIPT } from '@/lib/theme-context';
 import { ToastProvider } from '@/lib/toast-context';
+import { StoreProvider } from '@/store/StoreProvider';
+// TypeScript may complain about side-effect CSS imports if no '*.css' declaration
+// is present in the project. This import is intentional and required by Next.js.
+// @ts-ignore
 import './globals.css';
 
 /*
@@ -50,11 +54,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className={`${inter.variable} font-sans`}>
-        <ThemeProvider>
-          <ToastProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </ToastProvider>
-        </ThemeProvider>
+        <StoreProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <AuthProvider>{children}</AuthProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </StoreProvider>
       </body>
     </html>
   );

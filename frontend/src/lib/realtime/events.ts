@@ -1,0 +1,21 @@
+import type { Comment } from '@/lib/domain/types';
+import type { PresencePeer } from '@/store/slices/presenceSlice';
+
+/**
+ * The single realtime event contract. Both transports (Socket.IO and the
+ * cross-tab BroadcastChannel fallback) speak exactly this vocabulary, so nothing
+ * downstream knows or cares which one is active.
+ *
+ * Every event carries the `origin` client id so a tab can ignore the echo of its
+ * own emissions (the local reducer already applied them).
+ */
+export type RealtimeEvent =
+  | { type: 'task:moved'; origin: string; projectId: number; taskId: number }
+  | { type: 'task:changed'; origin: string; projectId: number }
+  | { type: 'comment:added'; origin: string; comment: Comment }
+  | { type: 'presence:sync'; origin: string; peer: PresencePeer }
+  | { type: 'presence:leave'; origin: string; clientId: string }
+  | { type: 'typing'; origin: string; taskId: number; clientId: string; typing: boolean }
+  | { type: 'notification:new'; origin: string; title: string; body?: string };
+
+export const RT_CHANNEL = 'kuberya-rt';

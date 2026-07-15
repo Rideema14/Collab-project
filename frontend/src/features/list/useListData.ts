@@ -1,0 +1,162 @@
+'use client';
+
+import { useMemo } from 'react';
+import { useGetBoardQuery } from '@/store/api/backendApi';
+import { useAppSelector } from '@/store/hooks';
+import { selectListById, selectStatusSetForList, selectRichById, selectPrefsByList } from '@/store/selectors';
+import { DEFAULT_PREFS, defaultRich, type ListViewPrefs } from '@/store/slices/tasksSlice';
+import { PRIORITY_META } from '@/lib/domain/defaults';
+import type { StatusDef, StatusSet, TaskRich, TaskVM } from '@/lib/domain/types';
+import type { Task } from '@/lib/types';
+import type { DynamicBoard } from '@/store/api/backendApi';
+
+export interface StatusColumn {
+  status: StatusDef;
+  tasks: TaskVM[];
+}
+
+export interface ListData {
+  projectId: number | null;
+  statusSet: StatusSet;
+  columns: StatusColumn[];
+  allTasks: TaskVM[];
+  prefs: ListViewPrefs;
+  isLoading: boolean;
+  isError: boolean;
+}
+
+function flatten(board: DynamicBoard): Task[] {
+  return Object.values(board).flat();
+}
+
+/** A synthetic status for a backend status name that has no def in the set yet. */
+function fallbackStatus(name: string, order: number): StatusDef {
+  return { id: `name:${name}`, name, hue: 220, group: 'active', order, backendStatus: null };
+}
+
+/**
+ * Resolve a task's status from its backend status NAME (the source of truth now
+ * that statuses persist server-side). Matches a def by name; if none exists yet,
+ * a fallback column is synthesized so no task is ever hidden.
+ */
+function resolveStatus(name: string, set: StatusSet, fallbacks: Map<string, StatusDef>): StatusDef {
+  const def = set.statuses.find((s) => s.name === name);
+  if (def) return def;
+  let fb = fallbacks.get(name);
+  if (!fb) {
+    fb = fallbackStatus(name, set.statuses.length + fallbacks.size);
+    fallbacks.set(name, fb);
+  }
+  return fb;
+}
+
+function toVM(
+  task: Task,
+  listId: string,
+  set: StatusSet,
+  richById: Record<number, TaskRich>,
+  fallbacks: Map<string, StatusDef>
+): TaskVM {
+  const rich = richById[task.id] ?? defaultRich(task.id, null);
+  const status = resolveStatus(task.status, set, fallbacks);
+  return {
+    id: task.id,
+    listId,
+    title: task.title,
+    assignee: task.assignee,
+    dueDate: task.dueDate,
+    isOverdue: task.isOverdue,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+    status,
+    rich: { ...rich, statusId: status.id },
+  };
+}
+
+function matchesFilters(vm: TaskVM, prefs: ListViewPrefs): boolean {
+  if (prefs.search && !vm.title.toLowerCase().includes(prefs.search.toLowerCase())) return false;
+  if (prefs.filterAssigneeIds.length) {
+    if (!vm.assignee || !prefs.filterAssigneeIds.includes(vm.assignee.id)) return false;
+  }
+  if (prefs.filterTagIds.length) {
+    if (!prefs.filterTagIds.some((t) => vm.rich.tagIds.includes(t))) return false;
+  }
+  if (!prefs.showDone && vm.status.group === 'done') return false;
+  return true;
+}
+
+function sortTasks(tasks: TaskVM[], sortBy: ListViewPrefs['sortBy']): TaskVM[] {
+  const copy = tasks.slice();
+  switch (sortBy) {
+    case 'due':
+      return copy.sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'));
+    case 'priority':
+      return copy.sort((a, b) => PRIORITY_META[a.rich.priority].rank - PRIORITY_META[b.rich.priority].rank);
+    case 'title':
+      return copy.sort((a, b) => a.title.localeCompare(b.title));
+    case 'manual':
+    default:
+      return copy.sort((a, b) => a.rich.order - b.rich.order || a.id - b.id);
+  }
+}
+
+/**
+ * The single read model for every view. Resolves the list's backend project,
+ * fetches its board (RTK Query), fuses each task with rich fields + custom
+ * statuses, applies the list's filters/sort, and groups into status columns
+ * ordered by the (fully user-controlled) status set.
+ */
+/**
+ * A single task's full view model, ignoring the list's filters (so an open detail
+ * drawer still resolves even when the task is filtered out of the current view).
+ */
+export function useTaskVM(listId: string, taskId: number | null): TaskVM | null {
+  const list = useAppSelector(selectListById(listId));
+  const set = useAppSelector(selectStatusSetForList(listId));
+  const richById = useAppSelector(selectRichById);
+  const projectId = list?.backendProjectId ?? null;
+  const { data: board } = useGetBoardQuery(projectId as number, { skip: projectId == null });
+
+  return useMemo(() => {
+    if (!board || !set || taskId == null) return null;
+    const task = flatten(board).find((t) => t.id === taskId);
+    return task ? toVM(task, listId, set, richById, new Map()) : null;
+  }, [board, set, richById, taskId, listId]);
+}
+
+export function useListData(listId: string): ListData {
+  const list = useAppSelector(selectListById(listId));
+  const set = useAppSelector(selectStatusSetForList(listId));
+  const richById = useAppSelector(selectRichById);
+  const prefsMap = useAppSelector(selectPrefsByList);
+  const projectId = list?.backendProjectId ?? null;
+
+  const { data: board, isLoading, isError } = useGetBoardQuery(projectId as number, {
+    skip: projectId == null,
+  });
+
+  const prefs = prefsMap[listId] ?? DEFAULT_PREFS;
+
+  return useMemo<ListData>(() => {
+    if (!board || !set) {
+      return { projectId, statusSet: set, columns: [], allTasks: [], prefs, isLoading, isError };
+    }
+    const fallbacks = new Map<string, StatusDef>();
+    const allTasks = flatten(board)
+      .map((t) => toVM(t, listId, set, richById, fallbacks))
+      .filter((vm) => matchesFilters(vm, prefs));
+
+    // Columns = the user's status set, plus any status name present in data that
+    // isn't in the set yet (so custom statuses created elsewhere still render).
+    const orderedStatuses = [...set.statuses, ...fallbacks.values()].sort((a, b) => a.order - b.order);
+    const columns: StatusColumn[] = orderedStatuses.map((status) => ({
+      status,
+      tasks: sortTasks(
+        allTasks.filter((vm) => vm.status.id === status.id),
+        prefs.sortBy
+      ),
+    }));
+
+    return { projectId, statusSet: set, columns, allTasks, prefs, isLoading, isError };
+  }, [board, set, richById, prefs, listId, projectId, isLoading, isError]);
+}
