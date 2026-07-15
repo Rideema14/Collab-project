@@ -52,7 +52,7 @@ export default function InboxPage() {
               </button>
             </li>
           ))}
-          {items.length === 0 && <p className="py-10 text-center text-sm text-text-subtle">You're all caught up.</p>}
+          {items.length === 0 && <p className="py-10 text-center text-sm text-text-subtle">You&apos;re all caught up.</p>}
         </ul>
       </div>
     </div>

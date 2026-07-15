@@ -1,0 +1,9 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/login/page": "/login",
+  "/page": "/",
+  "/register/page": "/register",
+  "/(app)/inbox/page": "/inbox",
+  "/(app)/home/page": "/home",
+  "/(app)/list/[listId]/page": "/list/[listId]"
+}

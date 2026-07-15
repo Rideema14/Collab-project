@@ -7,7 +7,6 @@ import { dateOnly } from '@/lib/format';
 import { statusColors } from '@/lib/domain/status-color';
 import { useTheme } from '@/lib/theme-context';
 import { cn } from '@/lib/design/cn';
-import type { TaskVM } from '@/lib/domain/types';
 import { useListData } from '@/features/list/useListData';
 
 const DAY = 86400000;

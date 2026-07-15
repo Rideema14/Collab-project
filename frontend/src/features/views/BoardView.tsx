@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -15,30 +15,40 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { motion } from 'framer-motion';
-import { Plus, Settings2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { openTask } from '@/store/slices/uiSlice';
 import { setOrder } from '@/store/slices/tasksSlice';
 import { statusColors } from '@/lib/domain/status-color';
 import { useTheme } from '@/lib/theme-context';
 import { cn } from '@/lib/design/cn';
-import { spring, staggerContainer, staggerItem } from '@/lib/design/motion';
-import type { StatusDef, TaskVM } from '@/lib/domain/types';
+import type { TaskVM } from '@/lib/domain/types';
 import { TaskCardContent } from '@/features/task/TaskCardContent';
 import { useListData, type StatusColumn } from '@/features/list/useListData';
 import { useListActions } from '@/features/list/useListActions';
 import { StatusManager } from '@/features/statuses/StatusManager';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/DropdownMenu';
 import { IconButton } from '@/components/ui/Misc';
 import { QuickAddTask } from '@/features/list/QuickAddTask';
 
 export function BoardView({ listId }: { listId: string }) {
-  const { columns, statusSet } = useListData(listId);
-  const { moveToStatus } = useListActions(listId);
+  const { columns } = useListData(listId);
+  const { moveToStatus, deleteTask } = useListActions(listId);
   const dispatch = useAppDispatch();
   const commentsByTask = useAppSelector((s) => s.comments.byTaskId);
   const [activeTask, setActiveTask] = useState<TaskVM | null>(null);
+
+  // Stable callbacks so memoized columns/cards don't re-render on every board render
+  // (notably during a drag, when dnd-kit re-renders the DndContext continuously).
+  const handleOpen = useCallback((id: number) => dispatch(openTask(id)), [dispatch]);
+  const handleDelete = useCallback((id: number, title: string) => void deleteTask(id, title), [deleteTask]);
 
   const byId = useMemo(() => {
     const map = new Map<number, { task: TaskVM; statusId: string }>();
@@ -91,16 +101,17 @@ export function BoardView({ listId }: { listId: string }) {
             key={col.status.id}
             column={col}
             listId={listId}
-            commentCount={(id) => commentsByTask[id]?.length ?? 0}
-            onOpen={(id) => dispatch(openTask(id))}
+            commentsByTask={commentsByTask}
+            onOpen={handleOpen}
+            onDelete={handleDelete}
           />
         ))}
-        <AddStatusButton setId={statusSet.id} />
+        <AddStatusButton listId={listId} />
       </div>
 
       <DragOverlay dropAnimation={{ duration: 220, easing: 'cubic-bezier(0.16,1,0.3,1)' }}>
         {activeTask && (
-          <div className="w-72">
+          <div className="w-72 cursor-grabbing">
             <TaskCardContent task={activeTask} overlay />
           </div>
         )}
@@ -109,28 +120,25 @@ export function BoardView({ listId }: { listId: string }) {
   );
 }
 
-function BoardColumn({
+const BoardColumn = memo(function BoardColumn({
   column,
   listId,
-  commentCount,
+  commentsByTask,
   onOpen,
+  onDelete,
 }: {
   column: StatusColumn;
   listId: string;
-  commentCount: (id: number) => number;
+  commentsByTask: Record<number, unknown[]>;
   onOpen: (id: number) => void;
+  onDelete: (id: number, title: string) => void;
 }) {
   const { theme } = useTheme();
   const { setNodeRef, isOver } = useDroppable({ id: `col:${column.status.id}` });
   const c = statusColors(column.status.hue, theme);
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={spring.smooth}
-      className="flex w-72 shrink-0 flex-col rounded-2xl border border-glass-border bg-glass"
-    >
+    <section className="flex w-72 shrink-0 animate-scale-in flex-col rounded-2xl border border-glass-border bg-glass">
       <header className="flex items-center gap-2 px-3 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.solid, boxShadow: `0 0 12px ${c.solid}` }} />
         <h3 className="text-sm font-semibold text-text">{column.status.name}</h3>
@@ -146,30 +154,38 @@ function BoardColumn({
         ref={setNodeRef}
         className={cn(
           'flex-1 space-y-2 overflow-y-auto px-2 pb-2 transition-colors',
-          isOver && 'rounded-b-2xl bg-primary-soft/25'
+          isOver && 'rounded-b-2xl bg-primary-soft/20 ring-2 ring-inset ring-[color:var(--color-primary)]/30'
         )}
       >
         <SortableContext items={column.tasks.map((t) => String(t.id))} strategy={verticalListSortingStrategy}>
-          <motion.div variants={staggerContainer(0.04)} initial="hidden" animate="show" className="space-y-2">
+          <div className="space-y-2">
             {column.tasks.map((task) => (
-              <SortableCard key={task.id} task={task} commentCount={commentCount(task.id)} onOpen={onOpen} />
+              <SortableCard
+                key={task.id}
+                task={task}
+                commentCount={commentsByTask[task.id]?.length ?? 0}
+                onOpen={onOpen}
+                onDelete={onDelete}
+              />
             ))}
-          </motion.div>
+          </div>
         </SortableContext>
         <QuickAddTask listId={listId} statusId={column.status.id} />
       </div>
-    </motion.section>
+    </section>
   );
-}
+});
 
-function SortableCard({
+const SortableCard = memo(function SortableCard({
   task,
   commentCount,
   onOpen,
+  onDelete,
 }: {
   task: TaskVM;
   commentCount: number;
   onOpen: (id: number) => void;
+  onDelete: (id: number, title: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: String(task.id),
@@ -177,11 +193,11 @@ function SortableCard({
   });
 
   return (
-    <motion.div variants={staggerItem}>
+    <div className="animate-fade-in">
       <div
         ref={setNodeRef}
         style={{ transform: CSS.Translate.toString(transform), transition }}
-        className={cn('cursor-grab active:cursor-grabbing', isDragging && 'opacity-40')}
+        className={cn('group/sc relative cursor-grab active:cursor-grabbing', isDragging && 'opacity-40')}
         {...attributes}
         {...listeners}
         role="button"
@@ -192,12 +208,45 @@ function SortableCard({
         }}
       >
         <TaskCardContent task={task} commentCount={commentCount} />
+        <CardMenu onOpen={() => onOpen(task.id)} onDelete={() => onDelete(task.id, task.title)} />
       </div>
-    </motion.div>
+    </div>
+  );
+});
+
+/** Hover/focus card actions. Stops pointer/click from reaching the drag+open handlers. */
+function CardMenu({ onOpen, onDelete }: { onOpen: () => void; onDelete: () => void }) {
+  return (
+    <div
+      className="absolute right-1.5 top-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/sc:opacity-100"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Task actions"
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-glass-border bg-surface-raised/85 text-text-subtle backdrop-blur transition-colors hover:text-text data-[state=open]:opacity-100"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={onOpen}>
+            <Pencil className="h-4 w-4" /> Open
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem destructive onSelect={onDelete}>
+            <Trash2 className="h-4 w-4" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
-function AddStatusButton({ setId }: { setId: string }) {
+function AddStatusButton({ listId }: { listId: string }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -209,14 +258,14 @@ function AddStatusButton({ setId }: { setId: string }) {
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="start">
-        <StatusManager setId={setId} />
+        <StatusManager listId={listId} />
       </PopoverContent>
     </Popover>
   );
 }
 
 /** Exposed so the list header can also open the status manager. */
-export function StatusManagerButton({ setId }: { setId: string }) {
+export function StatusManagerButton({ listId }: { listId: string }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -225,7 +274,7 @@ export function StatusManagerButton({ setId }: { setId: string }) {
         </IconButton>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
-        <StatusManager setId={setId} />
+        <StatusManager listId={listId} />
       </PopoverContent>
     </Popover>
   );

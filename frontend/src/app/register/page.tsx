@@ -30,7 +30,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.replace('/projects');
+      router.replace('/home');
     }
   }, [status, router]);
 
@@ -55,7 +55,7 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       await register(name.trim(), email.trim(), password);
-      router.replace('/projects');
+      router.replace('/home');
     } catch (error) {
       // 409 "An account with this email already exists" belongs on the email
       // field, not in a vague banner at the top of the form.
@@ -144,7 +144,13 @@ export default function RegisterPage() {
           )}
         </Field>
 
-        <Button type="submit" size="lg" fullWidth loading={submitting} className="mt-1">
+        <Button
+          type="submit"
+          size="lg"
+          fullWidth
+          loading={submitting}
+          className="mt-1 border-0 bg-gradient-brand shadow-glow transition-opacity hover:opacity-90"
+        >
           {submitting ? 'Creating account…' : 'Create account'}
         </Button>
       </form>

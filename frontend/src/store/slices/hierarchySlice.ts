@@ -137,6 +137,11 @@ const hierarchySlice = createSlice({
         };
       },
     },
+    /** Point a list at its own (per-project) status set. See statusesSlice.cloneSetForList. */
+    assignListStatusSet(state, action: PayloadAction<{ listId: string; statusSetId: string }>) {
+      const list = state.lists.find((l) => l.id === action.payload.listId);
+      if (list) list.statusSetId = action.payload.statusSetId;
+    },
     moveList(state, action: PayloadAction<{ listId: string; spaceId: string; folderId: string | null }>) {
       const list = state.lists.find((l) => l.id === action.payload.listId);
       if (list) {
@@ -198,6 +203,7 @@ export const {
   updateSpace,
   addFolder,
   addList,
+  assignListStatusSet,
   moveList,
   toggleExpanded,
   reconcileLists,

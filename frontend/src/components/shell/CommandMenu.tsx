@@ -6,7 +6,7 @@ import * as RDialog from '@radix-ui/react-dialog';
 import { CornerDownLeft, List as ListIcon, Search } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCommandPaletteOpen, selectLists, selectSpaces } from '@/store/selectors';
-import { setCommandPaletteOpen } from '@/store/slices/uiSlice';
+import { setCommandPaletteOpen, setVoiceCaptureOpen } from '@/store/slices/uiSlice';
 import { cn } from '@/lib/design/cn';
 
 interface Item {
@@ -23,6 +23,7 @@ export function CommandMenu() {
   const open = useAppSelector(selectCommandPaletteOpen);
   const lists = useAppSelector(selectLists);
   const spaces = useAppSelector(selectSpaces);
+  const activeListId = useAppSelector((s) => s.ui.activeListId);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
 
@@ -37,6 +38,15 @@ export function CommandMenu() {
       { id: 'home', label: 'Go to Home', hint: 'Navigation', run: () => router.push('/home') },
       { id: 'inbox', label: 'Go to Inbox', hint: 'Navigation', run: () => router.push('/inbox') },
     ];
+    // Voice capture is list-scoped: only offer it while a list is open.
+    if (activeListId) {
+      nav.push({
+        id: 'voice',
+        label: 'New task by voice',
+        hint: 'Action',
+        run: () => dispatch(setVoiceCaptureOpen(true)),
+      });
+    }
     const listItems: Item[] = lists.map((l) => {
       const space = spaces.find((s) => s.id === l.spaceId);
       return {
@@ -50,7 +60,7 @@ export function CommandMenu() {
     if (!query.trim()) return all;
     const q = query.toLowerCase();
     return all.filter((i) => i.label.toLowerCase().includes(q) || i.hint?.toLowerCase().includes(q));
-  }, [lists, spaces, query, router]);
+  }, [lists, spaces, query, router, activeListId, dispatch]);
 
   return (
     <RDialog.Root open={open} onOpenChange={(o) => (o ? dispatch(setCommandPaletteOpen(true)) : close())}>

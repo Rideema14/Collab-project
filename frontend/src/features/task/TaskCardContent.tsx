@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { CheckSquare, MessageSquare, Paperclip } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectTags } from '@/store/selectors';
@@ -17,7 +18,7 @@ import { useTheme } from '@/lib/theme-context';
  * drag overlay, so a dragged card looks identical. Glass surface, status accent
  * rail, priority badge, tags, meta row, and a subtask progress bar.
  */
-export function TaskCardContent({
+function TaskCardContentImpl({
   task,
   commentCount = 0,
   overlay = false,
@@ -37,7 +38,7 @@ export function TaskCardContent({
   return (
     <div
       className={cn(
-        'group/card relative overflow-hidden rounded-xl border border-glass-border bg-surface-raised/80 p-3 backdrop-blur',
+        'group/card relative overflow-hidden rounded-xl border border-glass-border bg-surface-raised p-3',
         'shadow-sm transition-shadow duration-200 hover:shadow-md',
         overlay && 'rotate-[1.5deg] shadow-lg ring-1 ring-[color:var(--color-primary)]/40',
         className
@@ -103,3 +104,9 @@ export function TaskCardContent({
     </div>
   );
 }
+
+/**
+ * Memoized so a store update elsewhere (e.g. the 4s presence heartbeat) doesn't
+ * re-render every card on the board — only cards whose props actually change.
+ */
+export const TaskCardContent = memo(TaskCardContentImpl);

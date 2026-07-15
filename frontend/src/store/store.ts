@@ -7,7 +7,6 @@ import { backendApi } from './api/backendApi';
 import { createSocketMiddleware } from './middleware/socketMiddleware';
 
 import uiReducer from './slices/uiSlice';
-import workspaceReducer from './slices/workspaceSlice';
 import notificationsReducer from './slices/notificationsSlice';
 import activityReducer from './slices/activitySlice';
 import hierarchyReducer from './slices/hierarchySlice';
@@ -48,7 +47,6 @@ const uiPersisted = persistReducer(
 const rootReducer = combineReducers({
   [backendApi.reducerPath]: backendApi.reducer,
   ui: uiPersisted,
-  workspace: workspaceReducer,
   notifications: notificationsReducer,
   activity: activityReducer,
   hierarchy: hierarchyReducer,
@@ -71,7 +69,6 @@ const persistedRootReducer = persistReducer(
       'tasks',
       'comments',
       'org',
-      'workspace',
       'notifications',
       'activity',
     ],

@@ -1,0 +1,63 @@
+{
+  "..\\node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
+    "id": 5139,
+    "files": [
+      "static/chunks/139.7a5a8e93a21948c1.js"
+    ]
+  },
+  "..\\node_modules\\next\\dist\\client\\index.js -> ../pages/_error": {
+    "id": 1646,
+    "files": [
+      "static/chunks/646.f342b7cffc01feb0.js"
+    ]
+  },
+  "features\\list\\ListWorkspace.tsx -> @/features/task/TaskDetailDrawer": {
+    "id": 8284,
+    "files": [
+      "static/chunks/9.87a9335437896cc6.js",
+      "static/chunks/903.851d37ae7310f7d2.js"
+    ]
+  },
+  "features\\list\\ListWorkspace.tsx -> @/features/task/VoiceCaptureModal": {
+    "id": 300,
+    "files": [
+      "static/chunks/300.85d7dafe62ccc81b.js"
+    ]
+  },
+  "features\\list\\ListWorkspace.tsx -> @/features/views/CalendarView": {
+    "id": 7676,
+    "files": [
+      "static/chunks/676.9735d8c59055bea2.js"
+    ]
+  },
+  "features\\list\\ListWorkspace.tsx -> @/features/views/ListView": {
+    "id": 5436,
+    "files": [
+      "static/chunks/436.39083f583c735ee2.js"
+    ]
+  },
+  "features\\list\\ListWorkspace.tsx -> @/features/views/TableView": {
+    "id": 1538,
+    "files": [
+      "static/chunks/538.9042f8a5916522ae.js"
+    ]
+  },
+  "features\\list\\ListWorkspace.tsx -> @/features/views/TimelineView": {
+    "id": 73,
+    "files": [
+      "static/chunks/73.d297d257a86b4df9.js"
+    ]
+  },
+  "features\\list\\ListWorkspace.tsx -> @/features/views/WorkloadView": {
+    "id": 3027,
+    "files": [
+      "static/chunks/27.dba374b22d38cd48.js"
+    ]
+  },
+  "lib\\realtime\\bus.ts -> socket.io-client": {
+    "id": 9829,
+    "files": [
+      "static/chunks/829.dab33a29cb27aa11.js"
+    ]
+  }
+}

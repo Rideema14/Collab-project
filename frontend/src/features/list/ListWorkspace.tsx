@@ -6,27 +6,58 @@ import {
   GanttChartSquare,
   KanbanSquare,
   LayoutList,
+  Mic,
   Search,
   Table2,
   Users,
   Waypoints,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setActiveListId } from '@/store/slices/uiSlice';
+import { setActiveListId, setVoiceCaptureOpen } from '@/store/slices/uiSlice';
 import { setViewPrefs, DEFAULT_PREFS, type ViewKind } from '@/store/slices/tasksSlice';
 import { selectListById, selectPrefsByList, selectSpaceById } from '@/store/selectors';
+import dynamic from 'next/dynamic';
 import { cn } from '@/lib/design/cn';
 import { Input } from '@/components/ui/Input';
 import { IconButton } from '@/components/ui/Misc';
 import { EmptyState } from '@/components/ui/States';
+import { Spinner } from '@/components/ui/Spinner';
+// Board is the default view — keep it eager so the first paint is instant. The
+// other views, the task drawer, and the voice modal are code-split and load on
+// demand, so opening a list ships far less JS up front.
 import { BoardView, StatusManagerButton } from '@/features/views/BoardView';
-import { ListView } from '@/features/views/ListView';
-import { TableView } from '@/features/views/TableView';
-import { CalendarView } from '@/features/views/CalendarView';
-import { WorkloadView } from '@/features/views/WorkloadView';
-import { TimelineView } from '@/features/views/TimelineView';
 import { useListData } from './useListData';
-import { TaskDetailDrawer } from '@/features/task/TaskDetailDrawer';
+
+const ViewLoading = () => (
+  <div className="grid h-full place-items-center">
+    <Spinner size="lg" label="Loading view" className="text-primary" />
+  </div>
+);
+
+const ListView = dynamic(() => import('@/features/views/ListView').then((m) => ({ default: m.ListView })), {
+  loading: ViewLoading,
+});
+const TableView = dynamic(() => import('@/features/views/TableView').then((m) => ({ default: m.TableView })), {
+  loading: ViewLoading,
+});
+const CalendarView = dynamic(
+  () => import('@/features/views/CalendarView').then((m) => ({ default: m.CalendarView })),
+  { loading: ViewLoading }
+);
+const WorkloadView = dynamic(
+  () => import('@/features/views/WorkloadView').then((m) => ({ default: m.WorkloadView })),
+  { loading: ViewLoading }
+);
+const TimelineView = dynamic(
+  () => import('@/features/views/TimelineView').then((m) => ({ default: m.TimelineView })),
+  { loading: ViewLoading }
+);
+const TaskDetailDrawer = dynamic(() =>
+  import('@/features/task/TaskDetailDrawer').then((m) => ({ default: m.TaskDetailDrawer }))
+);
+const VoiceCaptureModal = dynamic(() =>
+  import('@/features/task/VoiceCaptureModal').then((m) => ({ default: m.VoiceCaptureModal }))
+);
 
 const VIEW_TABS: { key: ViewKind; label: string; icon: typeof KanbanSquare }[] = [
   { key: 'board', label: 'Board', icon: KanbanSquare },
@@ -43,7 +74,7 @@ export function ListWorkspace({ listId }: { listId: string }) {
   const list = useAppSelector(selectListById(listId));
   const space = useAppSelector(selectSpaceById(list?.spaceId ?? ''));
   const prefs = useAppSelector(selectPrefsByList)[listId] ?? DEFAULT_PREFS;
-  const { statusSet, isLoading, allTasks } = useListData(listId);
+  const { isLoading, allTasks } = useListData(listId);
 
   useEffect(() => {
     dispatch(setActiveListId(listId));
@@ -127,13 +158,19 @@ export function ListWorkspace({ listId }: { listId: string }) {
 
         <div className="ml-auto flex items-center gap-1">
           <IconButton
+            aria-label="Add task by voice"
+            onClick={() => dispatch(setVoiceCaptureOpen(true))}
+          >
+            <Mic className="h-4 w-4" />
+          </IconButton>
+          <IconButton
             aria-label="Toggle density"
             active={prefs.density === 'compact'}
             onClick={() => set({ density: prefs.density === 'compact' ? 'comfortable' : 'compact' })}
           >
             <LayoutList className="h-4 w-4" />
           </IconButton>
-          <StatusManagerButton setId={statusSet.id} />
+          <StatusManagerButton listId={listId} />
         </div>
       </div>
 
@@ -147,6 +184,7 @@ export function ListWorkspace({ listId }: { listId: string }) {
       </div>
 
       <TaskDetailDrawer listId={listId} />
+      <VoiceCaptureModal listId={listId} />
     </div>
   );
 }

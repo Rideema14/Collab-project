@@ -26,7 +26,7 @@ export default function LoginPage() {
   // Already signed in? Don't make them log in twice.
   useEffect(() => {
     if (status === 'authenticated') {
-      router.replace('/projects');
+      router.replace('/home');
     }
   }, [status, router]);
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      router.replace('/projects');
+      router.replace('/home');
     } catch (error) {
       /*
        * The backend answers 401 "Invalid email or password" for both a missing
@@ -114,7 +114,13 @@ export default function LoginPage() {
         </Field>
 
         {/* `loading` disables the button — the double-submit guard. */}
-        <Button type="submit" size="lg" fullWidth loading={submitting} className="mt-1">
+        <Button
+          type="submit"
+          size="lg"
+          fullWidth
+          loading={submitting}
+          className="mt-1 border-0 bg-gradient-brand shadow-glow transition-opacity hover:opacity-90"
+        >
           {submitting ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>

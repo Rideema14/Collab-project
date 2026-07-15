@@ -4,16 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  BarChart3,
-  ChevronRight,
-  ChevronsLeft,
-  Home,
-  Inbox,
-  LayoutGrid,
-  List as ListIcon,
-  Plus,
-} from 'lucide-react';
+import { ChevronRight, ChevronsLeft, Home, Inbox, List as ListIcon, Plus } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   selectExpanded,
@@ -28,8 +19,6 @@ import {
 import { addSpace, toggleExpanded, DEFAULT_STATUS_SET_ID } from '@/store/slices/hierarchySlice';
 import { setMobileSidebarOpen, toggleSidebar } from '@/store/slices/uiSlice';
 import { useCreateProjectMutation } from '@/store/api/backendApi';
-import { statusColors } from '@/lib/domain/status-color';
-import { useTheme } from '@/lib/theme-context';
 import { spring } from '@/lib/design/motion';
 import { cn } from '@/lib/design/cn';
 import type { Space } from '@/lib/domain/types';
@@ -50,8 +39,6 @@ export function AppSidebar() {
   const mobileOpen = useAppSelector(selectMobileSidebarOpen);
   const user = useAppSelector(selectSessionUser);
   const activeWs = workspaces.find((w) => w.id === activeWsId) ?? workspaces[0];
-  const { theme } = useTheme();
-  const wsColor = statusColors(activeWs?.hue ?? 262, theme);
   const width = collapsed ? 76 : 264;
 
   const content = (

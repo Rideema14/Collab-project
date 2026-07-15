@@ -1,4 +1,4 @@
-import { io, type Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { RT_CHANNEL, type RealtimeEvent } from './events';
 
 /**
@@ -26,27 +26,44 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
 
 class SocketBus implements RealtimeBus {
   readonly transport = 'socket' as const;
-  private socket: Socket;
+  private socket: Socket | null = null;
   private handlers = new Set<(e: RealtimeEvent) => void>();
+  /** Emits/joins issued before the client finishes loading are buffered, then flushed. */
+  private pending: Array<[string, unknown]> = [];
 
   constructor(url: string) {
-    this.socket = io(url, { transports: ['websocket'], autoConnect: true });
-    this.socket.on('rt', (event: RealtimeEvent) => this.handlers.forEach((h) => h(event)));
+    // socket.io-client is ~45KB; load it ONLY when a socket URL is configured, so
+    // the default (BroadcastChannel) path keeps it out of the initial bundle.
+    void import('socket.io-client')
+      .then(({ io }) => {
+        const socket = io(url, { transports: ['websocket'], autoConnect: true });
+        socket.on('rt', (event: RealtimeEvent) => this.handlers.forEach((h) => h(event)));
+        this.socket = socket;
+        for (const [channel, payload] of this.pending) socket.emit(channel, payload);
+        this.pending = [];
+      })
+      .catch(() => {
+        /* leave socket null; emits are dropped, same as NoopBus */
+      });
+  }
+  private send(channel: string, payload: unknown) {
+    if (this.socket) this.socket.emit(channel, payload);
+    else this.pending.push([channel, payload]);
   }
   emit(event: RealtimeEvent) {
-    this.socket.emit('rt', event);
+    this.send('rt', event);
   }
   on(handler: (e: RealtimeEvent) => void) {
     this.handlers.add(handler);
   }
   join(room: string) {
-    this.socket.emit('join', room);
+    this.send('join', room);
   }
   leave(room: string) {
-    this.socket.emit('leave', room);
+    this.send('leave', room);
   }
   close() {
-    this.socket.close();
+    this.socket?.close();
   }
 }
 

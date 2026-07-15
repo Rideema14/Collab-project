@@ -1,5 +1,6 @@
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from './store';
+import type { StatusSet } from '@/lib/domain/types';
 import { DEFAULT_STATUS_SET_ID } from './slices/hierarchySlice';
 
 // --- ui ---
@@ -7,13 +8,6 @@ export const selectSidebarCollapsed = (s: RootState) => s.ui.sidebarCollapsed;
 export const selectMobileSidebarOpen = (s: RootState) => s.ui.mobileSidebarOpen;
 export const selectCommandPaletteOpen = (s: RootState) => s.ui.commandPaletteOpen;
 export const selectOpenTaskId = (s: RootState) => s.ui.openTaskId;
-
-// --- workspace (legacy switcher slice) ---
-export const selectWorkspaces = (s: RootState) => s.workspace.workspaces;
-export const selectActiveWorkspace = createSelector(
-  [selectWorkspaces, (s: RootState) => s.workspace.activeWorkspaceId],
-  (workspaces, activeId) => workspaces.find((w) => w.id === activeId) ?? workspaces[0]
-);
 
 // --- hierarchy ---
 export const selectHierarchy = (s: RootState) => s.hierarchy;
@@ -32,14 +26,31 @@ export const selectSpaceById = (id: string) => (s: RootState) =>
 
 // --- statuses ---
 export const selectStatusSets = (s: RootState) => s.statuses.sets;
-/** Resolve the status set that applies to a list (list override → space → default). */
-export const selectStatusSetForList = (listId: string) =>
-  createSelector([selectStatusSets, selectLists, (s: RootState) => s.hierarchy.spaces], (sets, lists, spaces) => {
-    const list = lists.find((l) => l.id === listId);
-    const space = list ? spaces.find((sp) => sp.id === list.spaceId) : null;
-    const setId = list?.statusSetId ?? space?.statusSetId ?? DEFAULT_STATUS_SET_ID;
-    return sets[setId] ?? sets[DEFAULT_STATUS_SET_ID];
-  });
+/**
+ * Resolve the status set that applies to a list (list override → space → default).
+ *
+ * Cached per listId: a bare factory would build a NEW memoized selector on every
+ * render, defeating memoization and recomputing on each call (this runs in every
+ * board render via useListData/useTaskVM/useStatusActions). One selector per list
+ * keeps the reselect cache warm so unrelated state changes are O(1) no-ops.
+ */
+const statusSetForListCache = new Map<string, (state: RootState) => StatusSet>();
+export const selectStatusSetForList = (listId: string): ((state: RootState) => StatusSet) => {
+  let selector = statusSetForListCache.get(listId);
+  if (!selector) {
+    selector = createSelector(
+      [selectStatusSets, selectLists, (s: RootState) => s.hierarchy.spaces],
+      (sets, lists, spaces) => {
+        const list = lists.find((l) => l.id === listId);
+        const space = list ? spaces.find((sp) => sp.id === list.spaceId) : null;
+        const setId = list?.statusSetId ?? space?.statusSetId ?? DEFAULT_STATUS_SET_ID;
+        return sets[setId] ?? sets[DEFAULT_STATUS_SET_ID];
+      }
+    );
+    statusSetForListCache.set(listId, selector);
+  }
+  return selector;
+};
 
 // --- tasks (rich + prefs) ---
 export const selectRichById = (s: RootState) => s.tasks.richById;

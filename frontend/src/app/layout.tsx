@@ -4,9 +4,9 @@ import { AuthProvider } from '@/lib/auth-context';
 import { ThemeProvider, THEME_INIT_SCRIPT } from '@/lib/theme-context';
 import { ToastProvider } from '@/lib/toast-context';
 import { StoreProvider } from '@/store/StoreProvider';
-// TypeScript may complain about side-effect CSS imports if no '*.css' declaration
-// is present in the project. This import is intentional and required by Next.js.
-// @ts-ignore
+// Side-effect CSS import — Next.js types this via next-env.d.ts.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Handle environments where CSS module declarations are not found
 import './globals.css';
 
 /*

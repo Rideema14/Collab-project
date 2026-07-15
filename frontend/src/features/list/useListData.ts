@@ -148,14 +148,18 @@ export function useListData(listId: string): ListData {
 
     // Columns = the user's status set, plus any status name present in data that
     // isn't in the set yet (so custom statuses created elsewhere still render).
+    // Archived statuses are hidden UNLESS they still hold tasks — so archiving
+    // never loses work; the column disappears once its tasks are moved out.
     const orderedStatuses = [...set.statuses, ...fallbacks.values()].sort((a, b) => a.order - b.order);
-    const columns: StatusColumn[] = orderedStatuses.map((status) => ({
-      status,
-      tasks: sortTasks(
-        allTasks.filter((vm) => vm.status.id === status.id),
-        prefs.sortBy
-      ),
-    }));
+    const columns: StatusColumn[] = orderedStatuses
+      .map((status) => ({
+        status,
+        tasks: sortTasks(
+          allTasks.filter((vm) => vm.status.id === status.id),
+          prefs.sortBy
+        ),
+      }))
+      .filter((col) => !col.status.archived || col.tasks.length > 0);
 
     return { projectId, statusSet: set, columns, allTasks, prefs, isLoading, isError };
   }, [board, set, richById, prefs, listId, projectId, isLoading, isError]);

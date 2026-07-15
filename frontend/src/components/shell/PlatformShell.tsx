@@ -2,11 +2,9 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { useAppDispatch } from '@/store/hooks';
 import { toggleCommandPalette } from '@/store/slices/uiSlice';
-import { pageTransition } from '@/lib/design/motion';
 import { SessionSync } from '@/features/shell/SessionSync';
 import { AppSidebar } from './AppSidebar';
 import { AppTopbar } from './AppTopbar';
@@ -40,18 +38,14 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col px-2 pb-2 md:pl-0">
           <AppTopbar />
           <main className="relative min-h-0 flex-1 overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={pathname}
-                variants={pageTransition}
-                initial="hidden"
-                animate="show"
-                exit="exit"
-                className="glass h-full overflow-hidden rounded-2xl shadow-glass"
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
+            {/* Keyed CSS fade replaces AnimatePresence: no Framer runtime in the
+                always-mounted shell, and no exit-wait delay on every navigation. */}
+            <div
+              key={pathname}
+              className="glass h-full animate-fade-in overflow-hidden rounded-2xl shadow-glass"
+            >
+              {children}
+            </div>
           </main>
         </div>
         <CommandMenu />

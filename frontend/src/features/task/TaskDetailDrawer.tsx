@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { closeTask } from '@/store/slices/uiSlice';
 import { selectOpenTaskId, selectSessionUser, selectTags } from '@/store/selectors';
@@ -19,9 +19,10 @@ import {
 import { addComment } from '@/store/slices/commentsSlice';
 import { broadcast } from '@/store/middleware/socketMiddleware';
 import { useGetUsersQuery } from '@/store/api/backendApi';
-import { relativeTime, formatDueDate } from '@/lib/format';
+import { relativeTime } from '@/lib/format';
 import { PRIORITY_META } from '@/lib/domain/defaults';
-import type { Priority } from '@/lib/domain/types';
+import type { Priority, TaskVM } from '@/lib/domain/types';
+import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Checkbox } from '@/components/ui/Checkbox';
@@ -29,7 +30,6 @@ import { Textarea } from '@/components/ui/Input';
 import { Avatar } from '@/components/domain/AvatarStack';
 import { StatusChip } from '@/components/domain/StatusChip';
 import { TagChip } from '@/components/domain/TagChip';
-import { PriorityFlag } from '@/components/domain/PriorityFlag';
 import { useTaskVM } from '@/features/list/useListData';
 import { useListActions } from '@/features/list/useListActions';
 
@@ -63,11 +63,12 @@ export function TaskDetailDrawer({ listId }: { listId: string }) {
 function Body({ listId, taskId }: { listId: string; taskId: number }) {
   const dispatch = useAppDispatch();
   const task = useTaskVM(listId, taskId)!;
-  const { updateTask } = useListActions(listId);
+  const { updateTask, deleteTask } = useListActions(listId);
   const { data: users = [] } = useGetUsersQuery();
 
   return (
-    <div className="p-4">
+    <div className="flex min-h-full flex-col">
+      <div className="flex-1 p-4">
       <input
         defaultValue={task.title}
         onBlur={(e) => e.target.value.trim() && e.target.value !== task.title && updateTask(taskId, { title: e.target.value.trim() })}
@@ -164,6 +165,53 @@ function Body({ listId, taskId }: { listId: string; taskId: number }) {
           />
         </TabsContent>
       </Tabs>
+      </div>
+
+      <DeleteFooter
+        task={task}
+        onDelete={async () => {
+          await deleteTask(taskId, task.title);
+          dispatch(closeTask());
+        }}
+      />
+    </div>
+  );
+}
+
+/** Sticky drawer footer: last-updated stamp + a two-step delete confirm. */
+function DeleteFooter({ task, onDelete }: { task: TaskVM; onDelete: () => void | Promise<void> }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t border-border bg-surface/90 px-4 py-3 backdrop-blur">
+      <span className="text-xs text-text-subtle">Updated {relativeTime(task.updatedAt)}</span>
+      {confirming ? (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-text-muted">Delete permanently?</span>
+          <Button variant="secondary" size="sm" onClick={() => setConfirming(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            loading={busy}
+            onClick={async () => {
+              setBusy(true);
+              await onDelete();
+            }}
+          >
+            Delete
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-danger transition-colors hover:bg-danger-soft"
+        >
+          <Trash2 className="h-4 w-4" /> Delete task
+        </button>
+      )}
     </div>
   );
 }

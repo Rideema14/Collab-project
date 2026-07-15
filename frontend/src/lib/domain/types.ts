@@ -93,6 +93,11 @@ export interface StatusDef {
    * PATCHes the server. Client-only statuses (null) are persisted locally only.
    */
   backendStatus: 'To Do' | 'In Progress' | 'Done' | null;
+  /**
+   * Archived statuses are kept for history but hidden from the board (unless they
+   * still hold tasks) and from status pickers. They can be un-archived at any time.
+   */
+  archived?: boolean;
 }
 
 export interface StatusSet {

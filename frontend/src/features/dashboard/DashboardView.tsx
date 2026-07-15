@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   Activity,
   AlertTriangle,
@@ -39,7 +38,7 @@ export function DashboardView() {
           {greeting}
           {user ? `, ${user.name.split(' ')[0]}` : ''}
         </h1>
-        <p className="mt-1 text-sm text-text-muted">Here's how work is moving across your workspace.</p>
+        <p className="mt-1 text-sm text-text-muted">Here&apos;s how work is moving across your workspace.</p>
 
         {/* KPI row */}
         <Stagger className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4" stagger={0.06}>

@@ -19,6 +19,8 @@ export interface UiState {
   activeListId: string | null;
   /** Task detail drawer target (backend task id), or null when closed. Not persisted. */
   openTaskId: number | null;
+  /** Voice task-capture modal (scoped to the active list). Not persisted. */
+  voiceCaptureOpen: boolean;
 }
 
 const initialState: UiState = {
@@ -27,6 +29,7 @@ const initialState: UiState = {
   commandPaletteOpen: false,
   activeListId: null,
   openTaskId: null,
+  voiceCaptureOpen: false,
 };
 
 const uiSlice = createSlice({
@@ -57,6 +60,9 @@ const uiSlice = createSlice({
     closeTask(state) {
       state.openTaskId = null;
     },
+    setVoiceCaptureOpen(state, action: PayloadAction<boolean>) {
+      state.voiceCaptureOpen = action.payload;
+    },
     /** Rehydrate persisted fields on the client after mount (see StoreProvider). */
     hydrateUi(state, action: PayloadAction<Partial<UiState>>) {
       if (typeof action.payload.sidebarCollapsed === 'boolean') {
@@ -75,6 +81,7 @@ export const {
   setActiveListId,
   openTask,
   closeTask,
+  setVoiceCaptureOpen,
   hydrateUi,
 } = uiSlice.actions;
 

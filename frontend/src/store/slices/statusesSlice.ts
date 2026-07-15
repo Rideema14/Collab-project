@@ -44,6 +44,30 @@ const statusesSlice = createSlice({
         return { payload: { ...defaultStatusSet(id), name } satisfies StatusSet };
       },
     },
+    /**
+     * Fork a per-project (per-list) status set. Clones the source set's statuses —
+     * keeping the same NAMES (so existing backend tasks stay mapped) but with fresh
+     * ids — into a new set. Idempotent: does nothing if `newSetId` already exists.
+     * This is what makes statuses per-project: editing one list's set never touches
+     * another's.
+     */
+    cloneSetForList(
+      state,
+      action: PayloadAction<{ newSetId: string; sourceSetId: string; name?: string }>
+    ) {
+      const { newSetId, sourceSetId, name } = action.payload;
+      if (state.sets[newSetId]) return;
+      const source = state.sets[sourceSetId] ?? state.sets[DEFAULT_STATUS_SET_ID];
+      if (!source) return;
+      state.sets[newSetId] = {
+        id: newSetId,
+        name: name ?? source.name,
+        statuses: source.statuses
+          .slice()
+          .sort((a, b) => a.order - b.order)
+          .map((s, i) => ({ ...s, id: `st-${nanoid(6)}`, order: i })),
+      };
+    },
     addStatus: {
       reducer(state, action: PayloadAction<{ setId: string; status: StatusDef }>) {
         const set = state.sets[action.payload.setId];
@@ -100,7 +124,13 @@ const statusesSlice = createSlice({
   },
 });
 
-export const { createStatusSet, addStatus, updateStatus, removeStatus, reorderStatus } =
-  statusesSlice.actions;
+export const {
+  createStatusSet,
+  cloneSetForList,
+  addStatus,
+  updateStatus,
+  removeStatus,
+  reorderStatus,
+} = statusesSlice.actions;
 
 export default statusesSlice.reducer;

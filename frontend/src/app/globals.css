@@ -259,6 +259,27 @@
 }
 
 @layer components {
+  /*
+   * The auth screen is a branded, always-dark cosmic experience. Re-declaring the
+   * semantic tokens here (rather than relying on the app theme) means the sign-in
+   * form's inputs/labels stay readable on the glass card whether the user's app
+   * theme is light or dark.
+   */
+  .cosmic-auth {
+    --color-surface: rgb(255 255 255 / 0.05);
+    --color-surface-muted: rgb(255 255 255 / 0.08);
+    --color-text: #f5f6fa;
+    --color-text-muted: #c1c6d4;
+    --color-text-subtle: #8b90a2;
+    --color-border: rgb(255 255 255 / 0.1);
+    --color-border-strong: rgb(255 255 255 / 0.18);
+    --color-primary: var(--indigo-500);
+    --color-primary-hover: var(--indigo-400);
+    --color-primary-fg: #ffffff;
+    --color-danger: #fb7185;
+    --color-focus: var(--indigo-400);
+  }
+
   /* Frosted glass panel — the signature surface. */
   .glass {
     background: var(--glass-bg);
