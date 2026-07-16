@@ -11,6 +11,7 @@ import {
   Hash,
   Home,
   Inbox,
+  MessageSquare,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -102,6 +103,7 @@ export function AppSidebar() {
 const NAV = [
   { href: '/home', icon: Home, label: 'Home' },
   { href: '/inbox', icon: Inbox, label: 'Inbox' },
+  { href: '/chat', icon: MessageSquare, label: 'Chat' },
   { href: '/people', icon: Users, label: 'People' },
 ];
 

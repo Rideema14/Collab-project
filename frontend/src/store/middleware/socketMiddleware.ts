@@ -10,6 +10,7 @@ import {
   setTyping,
 } from '../slices/presenceSlice';
 import { addComment, receiveComment } from '../slices/commentsSlice';
+import { sendMessage, receiveMessage, setPinned, deleteMessage } from '../slices/chatSlice';
 import { pushNotification } from '../slices/notificationsSlice';
 
 /** Dispatch once (from the shell) to boot the realtime bus. */
@@ -48,6 +49,15 @@ export function createSocketMiddleware(): Middleware {
             break;
           case 'comment:added':
             store.dispatch(receiveComment(event.comment));
+            break;
+          case 'chat:message':
+            store.dispatch(receiveMessage(event.message));
+            break;
+          case 'chat:pin':
+            store.dispatch(setPinned({ channelId: event.channelId, messageId: event.messageId, pinned: event.pinned }));
+            break;
+          case 'chat:delete':
+            store.dispatch(deleteMessage({ channelId: event.channelId, messageId: event.messageId }));
             break;
           case 'presence:sync':
             store.dispatch(presenceSync(event.peer));
@@ -114,6 +124,17 @@ export function createSocketMiddleware(): Middleware {
       // A locally created comment → tell peers.
       if (addComment.match(action)) {
         bus.emit({ type: 'comment:added', origin: clientId, comment: action.payload });
+      }
+      // A locally sent chat message → tell peers.
+      if (sendMessage.match(action)) {
+        bus.emit({ type: 'chat:message', origin: clientId, message: action.payload });
+      }
+      // Local pin / delete → tell peers.
+      if (setPinned.match(action)) {
+        bus.emit({ type: 'chat:pin', origin: clientId, ...action.payload });
+      }
+      if (deleteMessage.match(action)) {
+        bus.emit({ type: 'chat:delete', origin: clientId, ...action.payload });
       }
       // Backend task writes complete → tell peers to refetch that board.
       const a = action as { type?: string; meta?: { arg?: { endpointName?: string; originalArgs?: { projectId?: number } } } };

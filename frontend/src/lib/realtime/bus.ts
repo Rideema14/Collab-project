@@ -36,7 +36,15 @@ class SocketBus implements RealtimeBus {
     // the default (BroadcastChannel) path keeps it out of the initial bundle.
     void import('socket.io-client')
       .then(({ io }) => {
-        const socket = io(url, { transports: ['websocket'], autoConnect: true });
+        const socket = io(url, {
+          // Allow websocket with a polling fallback so it connects reliably behind
+          // proxies/dev servers, and auto-reconnect for a smooth, resilient link.
+          transports: ['websocket', 'polling'],
+          autoConnect: true,
+          reconnection: true,
+          reconnectionDelay: 500,
+          reconnectionDelayMax: 4000,
+        });
         socket.on('rt', (event: RealtimeEvent) => this.handlers.forEach((h) => h(event)));
         this.socket = socket;
         for (const [channel, payload] of this.pending) socket.emit(channel, payload);

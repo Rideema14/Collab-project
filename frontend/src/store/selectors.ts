@@ -76,3 +76,10 @@ export const selectUnreadCount = createSelector([selectNotifications], (items) =
 
 // --- activity ---
 export const selectAllActivity = (s: RootState) => s.activity.items;
+
+// --- chat ---
+export const selectChatChannels = (s: RootState) => s.chat.channels;
+export const selectActiveChannelId = (s: RootState) => s.chat.activeChannelId;
+export const selectChatMessages = (channelId: string) => (s: RootState) =>
+  s.chat.messagesByChannel[channelId] ?? EMPTY_MESSAGES;
+const EMPTY_MESSAGES: [] = [];

@@ -1,5 +1,6 @@
 import type { Comment } from '@/lib/domain/types';
 import type { PresencePeer } from '@/store/slices/presenceSlice';
+import type { ChatMessage } from '@/store/slices/chatSlice';
 
 /**
  * The single realtime event contract. Both transports (Socket.IO and the
@@ -13,6 +14,9 @@ export type RealtimeEvent =
   | { type: 'task:moved'; origin: string; projectId: number; taskId: number }
   | { type: 'task:changed'; origin: string; projectId: number }
   | { type: 'comment:added'; origin: string; comment: Comment }
+  | { type: 'chat:message'; origin: string; message: ChatMessage }
+  | { type: 'chat:pin'; origin: string; channelId: string; messageId: string; pinned: boolean }
+  | { type: 'chat:delete'; origin: string; channelId: string; messageId: string }
   | { type: 'presence:sync'; origin: string; peer: PresencePeer }
   | { type: 'presence:leave'; origin: string; clientId: string }
   | { type: 'typing'; origin: string; taskId: number; clientId: string; typing: boolean }

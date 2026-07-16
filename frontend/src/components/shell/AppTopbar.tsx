@@ -11,6 +11,7 @@ import {
   Inbox,
   LayoutGrid,
   Menu,
+  MessageSquare,
   Moon,
   Plus,
   Search,
@@ -201,6 +202,7 @@ function CreateMenu() {
 const STATIC_CRUMBS: Record<string, { label: string; icon: typeof Home }> = {
   '/home': { label: 'Home', icon: Home },
   '/inbox': { label: 'Inbox', icon: Inbox },
+  '/chat': { label: 'Chat', icon: MessageSquare },
   '/people': { label: 'People', icon: Users },
 };
 

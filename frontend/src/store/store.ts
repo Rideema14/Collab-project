@@ -13,6 +13,7 @@ import hierarchyReducer from './slices/hierarchySlice';
 import statusesReducer from './slices/statusesSlice';
 import tasksReducer from './slices/tasksSlice';
 import commentsReducer from './slices/commentsSlice';
+import chatReducer from './slices/chatSlice';
 import presenceReducer from './slices/presenceSlice';
 import orgReducer from './slices/orgSlice';
 import sessionReducer from './slices/sessionSlice';
@@ -53,6 +54,7 @@ const rootReducer = combineReducers({
   statuses: statusesReducer,
   tasks: tasksReducer,
   comments: commentsReducer,
+  chat: chatReducer,
   presence: presenceReducer,
   org: orgReducer,
   session: sessionReducer,
@@ -68,6 +70,7 @@ const persistedRootReducer = persistReducer(
       'statuses',
       'tasks',
       'comments',
+      'chat',
       'org',
       'notifications',
       'activity',
