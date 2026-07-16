@@ -12,6 +12,7 @@ export function DropdownMenuContent({
   className,
   align = 'start',
   sideOffset = 6,
+  collisionPadding = 8,
   ...props
 }: RDM.DropdownMenuContentProps) {
   return (
@@ -19,8 +20,10 @@ export function DropdownMenuContent({
       <RDM.Content
         align={align}
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
         className={cn(
-          'z-dropdown min-w-[11rem] overflow-hidden rounded-lg border border-border bg-surface-raised p-1 shadow-lg',
+          'z-dropdown min-w-[11rem] rounded-lg border border-border bg-surface-raised p-1 shadow-lg',
+          'max-w-[var(--radix-dropdown-menu-content-available-width)] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto',
           'animate-scale-in',
           className
         )}

@@ -1,4 +1,4 @@
-import type { Comment } from '@/lib/domain/types';
+import type { Comment, StatusSet } from '@/lib/domain/types';
 import type { PresencePeer } from '@/store/slices/presenceSlice';
 import type { ChatMessage } from '@/store/slices/chatSlice';
 
@@ -13,6 +13,7 @@ import type { ChatMessage } from '@/store/slices/chatSlice';
 export type RealtimeEvent =
   | { type: 'task:moved'; origin: string; projectId: number; taskId: number }
   | { type: 'task:changed'; origin: string; projectId: number }
+  | { type: 'status:changed'; origin: string; set: StatusSet }
   | { type: 'comment:added'; origin: string; comment: Comment }
   | { type: 'chat:message'; origin: string; message: ChatMessage }
   | { type: 'chat:pin'; origin: string; channelId: string; messageId: string; pinned: boolean }

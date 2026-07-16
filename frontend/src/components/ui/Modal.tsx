@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Button } from './Button';
 
 interface ModalProps {
@@ -26,9 +26,16 @@ export function Modal({ open, onClose, title, description, children, busy = fals
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
-  const requestClose = useCallback(() => {
+  // Callers routinely pass a fresh inline `onClose` every render (e.g. one
+  // that also resets form state). Reading it through a ref — rather than
+  // depending on it directly — means the setup effect below only needs
+  // `open` as a dependency, so it doesn't tear down and re-run (re-stealing
+  // focus to the dialog's first focusable element, i.e. the close button)
+  // on every keystroke in a field inside the modal.
+  const requestCloseRef = useRef<() => void>(() => {});
+  requestCloseRef.current = () => {
     if (!busy) onClose();
-  }, [busy, onClose]);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -46,7 +53,7 @@ export function Modal({ open, onClose, title, description, children, busy = fals
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault();
-        requestClose();
+        requestCloseRef.current();
         return;
       }
 
@@ -75,7 +82,7 @@ export function Modal({ open, onClose, title, description, children, busy = fals
       document.body.style.overflow = originalOverflow;
       previouslyFocused.current?.focus();
     };
-  }, [open, requestClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -83,7 +90,7 @@ export function Modal({ open, onClose, title, description, children, busy = fals
     <div className="fixed inset-0 z-modal flex items-end justify-center sm:items-center">
       <div
         className="absolute inset-0 animate-fade-in bg-overlay"
-        onClick={requestClose}
+        onClick={() => requestCloseRef.current()}
         aria-hidden="true"
       />
 
@@ -110,7 +117,7 @@ export function Modal({ open, onClose, title, description, children, busy = fals
           <Button
             variant="ghost"
             size="sm"
-            onClick={requestClose}
+            onClick={() => requestCloseRef.current()}
             disabled={busy}
             aria-label="Close dialog"
             className="-mr-2 -mt-1"

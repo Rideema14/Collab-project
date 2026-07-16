@@ -1,5 +1,17 @@
 import { api } from './client';
-import type { AuthPayload, Board, Project, Task, User, VoiceParseResult } from '../types';
+import type {
+  AiPlan,
+  AuthPayload,
+  Board,
+  Meeting,
+  MeetingContextPackage,
+  MeetingContextPayload,
+  MeetingType,
+  Project,
+  Task,
+  User,
+  VoiceParseResult,
+} from '../types';
 
 /**
  * Every backend route, in one place. Nothing outside this file constructs a URL.
@@ -114,6 +126,85 @@ export const voiceApi = {
       `/api/projects/${projectId}/tasks/voice/parse`,
       voiceBody(input)
     ),
+};
+
+// ---------- AI Workspace Assistant (authenticated) ----------
+
+export const aiApi = {
+  /**
+   * POST /api/ai/command — turns a natural-language message + a snapshot of the
+   * workspace into a structured action plan. The server only parses intent; the
+   * client's action layer runs the plan against the existing APIs.
+   */
+  command: (input: { message: string; context: unknown }) =>
+    api.post<AiPlan>('/api/ai/command', input),
+
+  /**
+   * POST /api/ai/transcribe — speech-to-text via Groq Whisper. Returns the
+   * transcript; the client then runs it through `command` like a typed message.
+   */
+  transcribe: (audio: Blob) => {
+    const form = new FormData();
+    form.append('audio', audio, 'command.webm');
+    return api.postForm<{ text: string }>('/api/ai/transcribe', form);
+  },
+};
+
+// ---------- Meetings (authenticated) ----------
+
+export interface MeetingInput {
+  title: string;
+  type?: MeetingType;
+  /** ISO datetime string. */
+  scheduledAt: string;
+  /** Optional join link (Zoom/Meet/Teams/etc). Sent to null to clear it. */
+  meetingUrl?: string | null;
+  projectIds: number[];
+  participantUserIds: number[];
+}
+
+export const meetingsApi = {
+  /** GET /api/meetings -> every meeting, newest-scheduled first. */
+  list: (signal?: AbortSignal) => api.get<Meeting[]>('/api/meetings', signal),
+
+  /** GET /api/meetings/:meetingId -> full detail incl. participants and projects. */
+  get: (meetingId: number, signal?: AbortSignal) =>
+    api.get<Meeting>(`/api/meetings/${meetingId}`, signal),
+
+  /** POST /api/meetings -> 201. Sends invite emails to every participant. */
+  create: (input: MeetingInput) => api.post<Meeting>('/api/meetings', input),
+
+  /**
+   * PATCH /api/meetings/:meetingId -> partial update.
+   * Only newly-added participants (not already on the meeting) receive an
+   * invite email — re-inviting everyone on every edit would be noisy.
+   */
+  update: (meetingId: number, input: Partial<MeetingInput>) =>
+    api.patch<Meeting>(`/api/meetings/${meetingId}`, input),
+
+  /** POST /api/meetings/:meetingId/cancel -> sets status to 'cancelled', emails participants. */
+  cancel: (meetingId: number) => api.post<Meeting>(`/api/meetings/${meetingId}/cancel`, undefined),
+
+  /**
+   * POST /api/meetings/:meetingId/context -> (re)builds the context package from
+   * current task state and stores it. Manual trigger — there is no background
+   * scheduler yet, so nothing builds this automatically.
+   */
+  generateContext: (meetingId: number) =>
+    api.post<MeetingContextPackage>(`/api/meetings/${meetingId}/context`, undefined),
+
+  /** GET /api/meetings/:meetingId/context -> the last generated package, or 404 if none yet. */
+  getContext: (meetingId: number, signal?: AbortSignal) =>
+    api.get<MeetingContextPackage>(`/api/meetings/${meetingId}/context`, signal),
+
+  /**
+   * POST /api/meetings/preview-context -> the same per-participant task
+   * breakdown as generateContext, but for projects/participants that aren't
+   * attached to a saved meeting yet — powers the live preview on the
+   * schedule form. `payload.meetingId` is null in the response.
+   */
+  previewContext: (input: { projectIds: number[]; participantUserIds: number[] }) =>
+    api.post<MeetingContextPayload>('/api/meetings/preview-context', input),
 };
 
 /*

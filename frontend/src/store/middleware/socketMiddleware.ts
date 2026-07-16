@@ -12,6 +12,15 @@ import {
 import { addComment, receiveComment } from '../slices/commentsSlice';
 import { sendMessage, receiveMessage, setPinned, deleteMessage } from '../slices/chatSlice';
 import { pushNotification } from '../slices/notificationsSlice';
+import {
+  createStatusSet,
+  cloneSetForList,
+  addStatus,
+  updateStatus,
+  removeStatus,
+  reorderStatus,
+  receiveStatusSet,
+} from '../slices/statusesSlice';
 
 /** Dispatch once (from the shell) to boot the realtime bus. */
 export const realtimeInit = createAction('realtime/init');
@@ -67,6 +76,9 @@ export function createSocketMiddleware(): Middleware {
             break;
           case 'typing':
             store.dispatch(setTyping({ taskId: event.taskId, clientId: event.clientId, typing: event.typing }));
+            break;
+          case 'status:changed':
+            store.dispatch(receiveStatusSet(event.set));
             break;
           case 'notification:new':
             store.dispatch(
@@ -136,6 +148,22 @@ export function createSocketMiddleware(): Middleware {
       if (deleteMessage.match(action)) {
         bus.emit({ type: 'chat:delete', origin: clientId, ...action.payload });
       }
+      // Any status-set edit (add/rename/recolor/regroup/reorder/archive/delete, or a
+      // fresh fork/clone) → broadcast the WHOLE resulting set. Statuses aren't
+      // backend-authoritative like tasks, so peers can't just refetch — they need the
+      // actual data, same as chat/comments above.
+      const setId = createStatusSet.match(action)
+        ? action.payload.id
+        : cloneSetForList.match(action)
+          ? action.payload.newSetId
+          : addStatus.match(action) || updateStatus.match(action) || removeStatus.match(action) || reorderStatus.match(action)
+            ? action.payload.setId
+            : null;
+      if (setId) {
+        const set = store.getState().statuses.sets[setId];
+        if (set) bus.emit({ type: 'status:changed', origin: clientId, set });
+      }
+
       // Backend task writes complete → tell peers to refetch that board.
       const a = action as { type?: string; meta?: { arg?: { endpointName?: string; originalArgs?: { projectId?: number } } } };
       if (a.type === 'backendApi/executeMutation/fulfilled') {

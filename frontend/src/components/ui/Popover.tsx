@@ -12,6 +12,7 @@ export function PopoverContent({
   className,
   align = 'start',
   sideOffset = 8,
+  collisionPadding = 8,
   ...props
 }: RPop.PopoverContentProps) {
   return (
@@ -19,8 +20,10 @@ export function PopoverContent({
       <RPop.Content
         align={align}
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
         className={cn(
           'z-dropdown w-72 rounded-xl border border-border bg-surface-raised p-3 shadow-lg',
+          'max-w-[var(--radix-popover-content-available-width)] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto',
           'animate-scale-in focus:outline-none',
           className
         )}

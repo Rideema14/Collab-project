@@ -64,11 +64,22 @@ function TaskCardContentImpl({
   commentCount = 0,
   overlay = false,
   className,
+  editing = false,
+  titleDraft,
+  onTitleDraftChange,
+  onTitleCommit,
+  onTitleCancel,
 }: {
   task: TaskVM;
   commentCount?: number;
   overlay?: boolean;
   className?: string;
+  /** Inline title-edit mode (triggered from the card's "Edit" menu action). */
+  editing?: boolean;
+  titleDraft?: string;
+  onTitleDraftChange?: (value: string) => void;
+  onTitleCommit?: () => void;
+  onTitleCancel?: () => void;
 }) {
   const tags = useAppSelector(selectTags).filter((t) => task.rich.tagIds.includes(t.id));
   const subDone = task.rich.subtasks.filter((s) => s.done).length;
@@ -89,9 +100,33 @@ function TaskCardContentImpl({
       <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: p.rail }} />
 
       {/* Title — tight, dark, readable on the pastel; room for the hover actions button */}
-      <p className="pr-6 text-sm font-semibold leading-snug" style={{ color: p.title }}>
-        {task.title}
-      </p>
+      {editing ? (
+        // eslint-disable-next-line jsx-a11y/no-autofocus
+        <input
+          autoFocus
+          value={titleDraft ?? task.title}
+          onChange={(e) => onTitleDraftChange?.(e.target.value)}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onTitleCommit?.();
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              onTitleCancel?.();
+            }
+          }}
+          onBlur={() => onTitleCommit?.()}
+          className="w-full rounded border border-primary bg-white/80 pr-6 text-sm font-semibold leading-snug outline-none"
+          style={{ color: p.title }}
+        />
+      ) : (
+        <p className="pr-6 text-sm font-semibold leading-snug" style={{ color: p.title }}>
+          {task.title}
+        </p>
+      )}
 
       {/* Tag pills */}
       {tags.length > 0 && (

@@ -110,4 +110,24 @@ async function deleteTask(taskId) {
   if (!deleted) throw new ApiError(404, 'Task not found');
 }
 
-module.exports = { createTask, getBoard, updateTaskStatus, updateTask, deleteTask };
+/**
+ * Every overdue, non-Done task with an assignee, grouped by that assignee.
+ * Used by the overdue-reminder email job — not exposed as an HTTP route.
+ */
+async function getOverdueTasksByAssignee() {
+  const rows = await repository.findOverdueWithAssignee();
+  const byAssignee = new Map();
+  for (const row of rows) {
+    const key = row.assignee_id;
+    if (!byAssignee.has(key)) {
+      byAssignee.set(key, {
+        assignee: { id: row.assignee_id, name: row.assignee_name, email: row.assignee_email },
+        tasks: [],
+      });
+    }
+    byAssignee.get(key).tasks.push({ id: row.id, title: row.title, dueDate: row.due_date, projectName: row.project_name });
+  }
+  return [...byAssignee.values()];
+}
+
+module.exports = { createTask, getBoard, updateTaskStatus, updateTask, deleteTask, getOverdueTasksByAssignee };

@@ -1,5 +1,5 @@
 import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit';
-import type { AuditEntry, MemberMeta, Permission, Role, Tag } from '@/lib/domain/types';
+import type { AuditEntry, MemberMeta, Permission, Role, Tag, Team } from '@/lib/domain/types';
 import { defaultRoles } from '@/lib/domain/defaults';
 
 /**
@@ -14,6 +14,7 @@ export interface OrgState {
   members: Record<number, MemberMeta>;
   tags: Tag[];
   audit: AuditEntry[];
+  teams: Team[];
 }
 
 const initialState: OrgState = {
@@ -26,6 +27,7 @@ const initialState: OrgState = {
     { id: 'tag-urgent', label: 'urgent', hue: 28 },
   ],
   audit: [],
+  teams: [],
 };
 
 const MAX_AUDIT = 300;
@@ -81,6 +83,39 @@ const orgSlice = createSlice({
         return { payload: { id: `tag-${nanoid(6)}`, label: input.label.trim(), hue: input.hue } satisfies Tag };
       },
     },
+    /** Admin: remove a member's metadata (client-only "delete user"). */
+    removeMember(state, action: PayloadAction<number>) {
+      delete state.members[action.payload];
+    },
+    addTeam: {
+      reducer(state, action: PayloadAction<Team>) {
+        state.teams.push(action.payload);
+      },
+      prepare(input: { name: string; color: string; memberIds?: number[] }) {
+        return {
+          payload: {
+            id: `team-${nanoid(6)}`,
+            name: input.name.trim() || 'Team',
+            color: input.color,
+            memberIds: input.memberIds ?? [],
+          } satisfies Team,
+        };
+      },
+    },
+    updateTeam(state, action: PayloadAction<{ id: string; changes: Partial<Team> }>) {
+      const t = state.teams.find((x) => x.id === action.payload.id);
+      if (t) Object.assign(t, action.payload.changes);
+    },
+    removeTeam(state, action: PayloadAction<string>) {
+      state.teams = state.teams.filter((t) => t.id !== action.payload);
+    },
+    toggleTeamMember(state, action: PayloadAction<{ teamId: string; userId: number }>) {
+      const t = state.teams.find((x) => x.id === action.payload.teamId);
+      if (!t) return;
+      t.memberIds = t.memberIds.includes(action.payload.userId)
+        ? t.memberIds.filter((id) => id !== action.payload.userId)
+        : [...t.memberIds, action.payload.userId];
+    },
     logAudit: {
       reducer(state, action: PayloadAction<AuditEntry>) {
         state.audit.unshift(action.payload);
@@ -107,6 +142,11 @@ export const {
   removeRole,
   setMemberMeta,
   ensureMembers,
+  removeMember,
+  addTeam,
+  updateTeam,
+  removeTeam,
+  toggleTeamMember,
   addTag,
   logAudit,
 } = orgSlice.actions;

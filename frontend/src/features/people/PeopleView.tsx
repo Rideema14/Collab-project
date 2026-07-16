@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { Search, UserPlus } from 'lucide-react';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { useAppSelector } from '@/store/hooks';
 import { useGetUsersQuery } from '@/store/api/backendApi';
 import { selectMembersMeta, selectRoles, selectSessionUser } from '@/store/selectors';
-import { setMemberMeta } from '@/store/slices/orgSlice';
 import { useWorkspaceStats } from '@/features/dashboard/useWorkspaceStats';
 import { useToast } from '@/lib/toast-context';
 import { Avatar } from '@/components/domain/AvatarStack';
@@ -15,11 +14,10 @@ import type { User } from '@/lib/types';
 /**
  * The People (members) directory — the real `GET /users` roster fused with the
  * client-side org model (role + capacity) and live task counts from the workspace
- * stats. Roles/capacity are CLIENT-ONLY (the API has no authorization model), so
- * they're editable here and clearly scoped to this UI.
+ * stats. Read-only: roles are CLIENT-ONLY (the API has no authorization model)
+ * and only members with `member.manage` can change them, in the Admin panel.
  */
 export function PeopleView() {
-  const dispatch = useAppDispatch();
   const { notify } = useToast();
   const { data: users, isLoading } = useGetUsersQuery();
   const roles = useAppSelector(selectRoles);
@@ -40,11 +38,6 @@ export function PeopleView() {
     if (!q) return list;
     return list.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
   }, [users, query]);
-
-  function changeRole(userId: number, roleId: string) {
-    const meta = membersMeta[userId];
-    dispatch(setMemberMeta({ userId, roleId, capacityHours: meta?.capacityHours ?? 40, status: meta?.status ?? 'active' }));
-  }
 
   return (
     <div className="flex h-full flex-col">
@@ -104,8 +97,6 @@ export function PeopleView() {
                     roleColor={roles.find((r) => r.id === membersMeta[user.id]?.roleId)?.color}
                     isSelf={self?.id === user.id}
                     counts={countByName.get(user.name)}
-                    roles={roles}
-                    onRoleChange={(roleId) => changeRole(user.id, roleId)}
                   />
                 ))}
               </tbody>
@@ -113,7 +104,7 @@ export function PeopleView() {
           </div>
         )}
         <p className="mt-3 text-xs text-text-subtle">
-          Roles and capacity are workspace settings used to tailor views and the workload planner.
+          Roles and capacity tailor views and the workload planner. Admins can change them in Admin → Users.
         </p>
       </div>
     </div>
@@ -127,8 +118,6 @@ function MemberRow({
   roleColor,
   isSelf,
   counts,
-  roles,
-  onRoleChange,
 }: {
   user: User;
   meta: MemberMeta | undefined;
@@ -136,8 +125,6 @@ function MemberRow({
   roleColor: string | undefined;
   isSelf: boolean;
   counts: { count: number; done: number } | undefined;
-  roles: { id: string; name: string }[];
-  onRoleChange: (roleId: string) => void;
 }) {
   const active = (counts?.count ?? 0) - (counts?.done ?? 0);
   return (
@@ -161,19 +148,11 @@ function MemberRow({
       <td className="hidden px-4 py-3 sm:table-cell">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full" style={{ background: roleColor ?? '#94a3b8' }} />
-          <select
-            value={meta?.roleId ?? ''}
-            onChange={(e) => onRoleChange(e.target.value)}
-            aria-label={`Role for ${user.name}`}
-            className="cursor-pointer rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-muted outline-none transition-colors hover:border-border-strong focus:border-primary"
-          >
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-          {!roleName && <span className="text-xs text-text-subtle">—</span>}
+          {roleName ? (
+            <span className="text-sm text-text-muted">{roleName}</span>
+          ) : (
+            <span className="text-xs text-text-subtle">—</span>
+          )}
         </div>
       </td>
       <td className="hidden px-4 py-3 text-center md:table-cell">

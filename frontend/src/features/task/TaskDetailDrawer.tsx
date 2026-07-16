@@ -1,14 +1,27 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Play, Plus, Square, Trash2, X } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { closeTask } from '@/store/slices/uiSlice';
-import { selectOpenTaskId, selectSessionUser, selectTags } from '@/store/selectors';
 import {
+  selectFieldsForList,
+  selectFieldValues,
+  selectOpenTaskId,
+  selectRunningTimer,
+  selectSessionUser,
+  selectTags,
+  selectTimeEntries,
+} from '@/store/selectors';
+import {
+  addAttachment,
   addChecklist,
   addChecklistItem,
+  addDependency,
   addSubtask,
+  logTime,
+  removeAttachment,
+  removeDependency,
   setDescription,
   setPriority,
   setTags,
@@ -17,11 +30,14 @@ import {
   toggleWatcher,
 } from '@/store/slices/tasksSlice';
 import { addComment } from '@/store/slices/commentsSlice';
+import { addField, removeField, setValue, type CustomFieldType } from '@/store/slices/customFieldsSlice';
+import { startTimer, clearTimer, addEntry, removeEntry } from '@/store/slices/timeSlice';
 import { broadcast } from '@/store/middleware/socketMiddleware';
 import { useGetUsersQuery } from '@/store/api/backendApi';
-import { relativeTime } from '@/lib/format';
+import { relativeTime, formatDuration } from '@/lib/format';
+import { cn } from '@/lib/design/cn';
 import { PRIORITY_META } from '@/lib/domain/defaults';
-import type { Priority, TaskVM } from '@/lib/domain/types';
+import type { DependencyType, Priority, TaskVM } from '@/lib/domain/types';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
@@ -30,8 +46,10 @@ import { Textarea } from '@/components/ui/Input';
 import { Avatar } from '@/components/domain/AvatarStack';
 import { StatusChip } from '@/components/domain/StatusChip';
 import { TagChip } from '@/components/domain/TagChip';
-import { useTaskVM } from '@/features/list/useListData';
+import { useTaskVM, useListData } from '@/features/list/useListData';
 import { useListActions } from '@/features/list/useListActions';
+import { useTemplateActions } from '@/features/templates/useTemplateActions';
+import { useToast } from '@/lib/toast-context';
 
 const PRIORITIES: Priority[] = ['urgent', 'high', 'normal', 'low', 'none'];
 
@@ -65,15 +83,29 @@ function Body({ listId, taskId }: { listId: string; taskId: number }) {
   const task = useTaskVM(listId, taskId)!;
   const { updateTask, deleteTask } = useListActions(listId);
   const { data: users = [] } = useGetUsersQuery();
+  const { saveTaskAsTemplate } = useTemplateActions();
+  const { notify } = useToast();
 
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex-1 p-4">
-      <input
-        defaultValue={task.title}
-        onBlur={(e) => e.target.value.trim() && e.target.value !== task.title && updateTask(taskId, { title: e.target.value.trim() })}
-        className="mb-3 w-full bg-transparent text-lg font-semibold text-text outline-none"
-      />
+      <div className="mb-3 flex items-start gap-2">
+        <input
+          defaultValue={task.title}
+          onBlur={(e) => e.target.value.trim() && e.target.value !== task.title && updateTask(taskId, { title: e.target.value.trim() })}
+          className="w-full flex-1 bg-transparent text-lg font-semibold text-text outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            saveTaskAsTemplate(taskId, task.title, `${task.title} template`);
+            notify('success', 'Saved as a task template');
+          }}
+          className="shrink-0 whitespace-nowrap rounded-md border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-glass-border hover:text-text"
+        >
+          Save as template
+        </button>
+      </div>
 
       {/* Meta grid */}
       <div className="mb-4 grid grid-cols-2 gap-3 rounded-lg border border-border bg-surface-muted/40 p-3 text-sm">
@@ -139,10 +171,15 @@ function Body({ listId, taskId }: { listId: string; taskId: number }) {
 
       <TagEditor taskId={taskId} current={task.rich.tagIds} />
 
+      <CustomFields taskId={taskId} listId={listId} />
+
       <Tabs defaultValue="subtasks" className="mt-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="subtasks">Subtasks</TabsTrigger>
           <TabsTrigger value="checklists">Checklists</TabsTrigger>
+          <TabsTrigger value="time">Time</TabsTrigger>
+          <TabsTrigger value="links">Links</TabsTrigger>
+          <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="comments">Comments</TabsTrigger>
           <TabsTrigger value="description">Notes</TabsTrigger>
         </TabsList>
@@ -152,6 +189,15 @@ function Body({ listId, taskId }: { listId: string; taskId: number }) {
         </TabsContent>
         <TabsContent value="checklists" className="mt-3">
           <Checklists taskId={taskId} />
+        </TabsContent>
+        <TabsContent value="time" className="mt-3">
+          <TimePanel taskId={taskId} />
+        </TabsContent>
+        <TabsContent value="links" className="mt-3">
+          <Dependencies taskId={taskId} listId={listId} />
+        </TabsContent>
+        <TabsContent value="files" className="mt-3">
+          <Attachments taskId={taskId} />
         </TabsContent>
         <TabsContent value="comments" className="mt-3">
           <Comments taskId={taskId} />
@@ -406,6 +452,280 @@ function Comments({ taskId }: { taskId: number }) {
           Send
         </button>
       </form>
+    </div>
+  );
+}
+
+/* ─────────────────── Custom fields ─────────────────── */
+
+const FIELD_TYPES: CustomFieldType[] = ['text', 'number', 'money', 'date', 'checkbox', 'dropdown', 'rating'];
+
+function CustomFields({ taskId, listId }: { taskId: number; listId: string }) {
+  const dispatch = useAppDispatch();
+  const defs = useAppSelector(selectFieldsForList(listId));
+  const values = useAppSelector(selectFieldValues(taskId));
+  const [adding, setAdding] = useState(false);
+  return (
+    <div className="mt-4">
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-text-subtle">Custom fields</p>
+      <div className="space-y-2 rounded-lg border border-border bg-surface-muted/40 p-3">
+        {defs.length === 0 && !adding && <p className="text-sm text-text-subtle">No custom fields for this list.</p>}
+        {defs.map((f) => (
+          <div key={f.id} className="flex items-center gap-2">
+            <span className="w-28 shrink-0 truncate text-xs text-text-muted">{f.name}</span>
+            <FieldInput
+              field={f}
+              value={values[f.id] ?? null}
+              onChange={(v) => dispatch(setValue({ taskId, fieldId: f.id, value: v }))}
+            />
+            <button type="button" aria-label="Remove field" onClick={() => dispatch(removeField(f.id))} className="text-text-subtle hover:text-danger">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+        {adding ? (
+          <AddFieldForm listId={listId} onDone={() => setAdding(false)} />
+        ) : (
+          <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+            <Plus className="h-3.5 w-3.5" /> Add field
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: { type: CustomFieldType; options: { id: string; label: string }[] };
+  value: string | number | boolean | null;
+  onChange: (v: string | number | boolean | null) => void;
+}) {
+  const cls = 'h-8 flex-1 rounded border border-border bg-surface px-2 text-sm text-text outline-none focus:border-primary';
+  switch (field.type) {
+    case 'number':
+    case 'money':
+      return <input type="number" className={cls} value={typeof value === 'number' ? value : ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} />;
+    case 'date':
+      return <input type="date" className={cls} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value || null)} />;
+    case 'checkbox':
+      return <div className="flex-1"><Checkbox checked={Boolean(value)} onCheckedChange={(c) => onChange(Boolean(c))} /></div>;
+    case 'dropdown':
+      return (
+        <select className={cls} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value || null)}>
+          <option value="">—</option>
+          {field.options.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
+        </select>
+      );
+    case 'rating':
+      return (
+        <div className="flex flex-1 gap-0.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} type="button" onClick={() => onChange(n === value ? null : n)} className={cn('text-lg leading-none', typeof value === 'number' && value >= n ? 'text-warning' : 'text-text-subtle')}>★</button>
+          ))}
+        </div>
+      );
+    default:
+      return <input className={cls} value={typeof value === 'string' ? value : ''} onChange={(e) => onChange(e.target.value)} />;
+  }
+}
+
+function AddFieldForm({ listId, onDone }: { listId: string; onDone: () => void }) {
+  const dispatch = useAppDispatch();
+  const [name, setName] = useState('');
+  const [type, setType] = useState<CustomFieldType>('text');
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+        dispatch(addField({ listId, name, type }));
+        onDone();
+      }}
+    >
+      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Field name" className="h-8 w-32 rounded border border-border bg-surface px-2 text-sm text-text outline-none" />
+      <select value={type} onChange={(e) => setType(e.target.value as CustomFieldType)} className="h-8 rounded border border-border bg-surface px-1 text-sm text-text">
+        {FIELD_TYPES.map((t) => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+      <button type="submit" className="rounded bg-primary px-2 py-1 text-xs text-primary-fg">Add</button>
+      <button type="button" onClick={onDone} className="text-xs text-text-muted">Cancel</button>
+    </form>
+  );
+}
+
+/* ─────────────────── Time tracking ─────────────────── */
+
+function TimePanel({ taskId }: { taskId: number }) {
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectSessionUser);
+  const running = useAppSelector(selectRunningTimer);
+  const entries = useAppSelector(selectTimeEntries).filter((e) => e.taskId === taskId);
+  const total = entries.reduce((s, e) => s + e.minutes, 0);
+  const isRunningThis = running?.taskId === taskId;
+  const [manual, setManual] = useState('');
+
+  function stop() {
+    if (!running) return;
+    const mins = Math.max(1, Math.round((Date.now() - running.startedAt) / 60000));
+    dispatch(addEntry({ taskId, userId: user?.id ?? null, minutes: mins }));
+    dispatch(logTime({ taskId, minutes: mins }));
+    dispatch(clearTimer());
+  }
+  function addManual() {
+    const mins = parseInt(manual, 10);
+    if (!mins || mins <= 0) return;
+    dispatch(addEntry({ taskId, userId: user?.id ?? null, minutes: mins }));
+    dispatch(logTime({ taskId, minutes: mins }));
+    setManual('');
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-semibold text-text">Total: {formatDuration(total)}</span>
+        {isRunningThis ? (
+          <button type="button" onClick={stop} className="inline-flex items-center gap-1.5 rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-white">
+            <Square className="h-3.5 w-3.5" /> Stop timer
+          </button>
+        ) : (
+          <button type="button" onClick={() => dispatch(startTimer(taskId))} disabled={Boolean(running)} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-fg disabled:opacity-50">
+            <Play className="h-3.5 w-3.5" /> Start timer
+          </button>
+        )}
+      </div>
+      {running && !isRunningThis && <p className="text-xs text-text-subtle">A timer is running on another task.</p>}
+      <div className="flex gap-2">
+        <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Minutes…" type="number" className="h-8 w-28 rounded border border-border bg-surface px-2 text-sm text-text outline-none" />
+        <button type="button" onClick={addManual} className="rounded-md border border-border px-2 text-sm text-text-muted hover:bg-surface-muted">Log time</button>
+      </div>
+      <div className="space-y-1">
+        {entries.map((e) => (
+          <div key={e.id} className="flex items-center gap-2 text-sm">
+            <span className="text-text">{formatDuration(e.minutes)}</span>
+            <span className="text-xs text-text-subtle">{relativeTime(e.at)}</span>
+            <button type="button" aria-label="Remove entry" onClick={() => { dispatch(removeEntry(e.id)); dispatch(logTime({ taskId, minutes: -e.minutes })); }} className="ml-auto text-text-subtle hover:text-danger">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────── Dependencies ─────────────────── */
+
+const DEP_LABEL: Record<DependencyType, string> = { blocks: 'Blocks', blocked_by: 'Blocked by', relates_to: 'Relates to' };
+
+function Dependencies({ taskId, listId }: { taskId: number; listId: string }) {
+  const dispatch = useAppDispatch();
+  const { allTasks } = useListData(listId);
+  const rich = useAppSelector((s) => s.tasks.richById[taskId]);
+  const deps = rich?.dependencies ?? [];
+  const [type, setType] = useState<DependencyType>('blocks');
+  const [other, setOther] = useState('');
+  const byId = useMemo(() => new Map(allTasks.map((t) => [t.id, t])), [allTasks]);
+
+  return (
+    <div className="space-y-2">
+      {deps.map((d) => {
+        const t = byId.get(d.taskId);
+        return (
+          <div key={d.id} className="flex items-center gap-2 text-sm">
+            <span className="shrink-0 rounded bg-surface-muted px-1.5 py-0.5 text-xs text-text-muted">{DEP_LABEL[d.type]}</span>
+            <span className="min-w-0 truncate text-text">{t?.title ?? `Task #${d.taskId}`}</span>
+            <button type="button" aria-label="Remove link" onClick={() => dispatch(removeDependency({ taskId, dependencyId: d.id }))} className="ml-auto shrink-0 text-text-subtle hover:text-danger">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      })}
+      {deps.length === 0 && <p className="text-sm text-text-subtle">No linked tasks.</p>}
+      <form
+        className="flex flex-wrap items-center gap-2 pt-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const otherId = Number(other);
+          if (!otherId || otherId === taskId) return;
+          dispatch(addDependency({ taskId, otherTaskId: otherId, type }));
+          setOther('');
+        }}
+      >
+        <select value={type} onChange={(e) => setType(e.target.value as DependencyType)} className="h-8 rounded border border-border bg-surface px-1 text-sm text-text">
+          <option value="blocks">Blocks</option>
+          <option value="blocked_by">Blocked by</option>
+          <option value="relates_to">Relates to</option>
+        </select>
+        <select value={other} onChange={(e) => setOther(e.target.value)} className="h-8 min-w-0 flex-1 rounded border border-border bg-surface px-1 text-sm text-text">
+          <option value="">Pick a task…</option>
+          {allTasks.filter((t) => t.id !== taskId).map((t) => (
+            <option key={t.id} value={t.id}>{t.title}</option>
+          ))}
+        </select>
+        <button type="submit" className="rounded bg-primary px-2 py-1 text-xs text-primary-fg">Link</button>
+      </form>
+    </div>
+  );
+}
+
+/* ─────────────────── Attachments (client-only data URLs) ─────────────────── */
+
+/**
+ * Files live in localStorage as base64 data URLs, which costs ~33% more than the
+ * raw bytes and shares one ~5MB origin quota with the ENTIRE persisted workspace.
+ * Without a cap, one phone photo overflows that quota — and redux-persist then
+ * fails every subsequent write, silently losing tasks/statuses/chat rather than
+ * just the file. So oversized files are rejected up front, with an explanation.
+ */
+const MAX_ATTACHMENT_BYTES = 512 * 1024;
+
+function Attachments({ taskId }: { taskId: number }) {
+  const dispatch = useAppDispatch();
+  const { notify } = useToast();
+  const rich = useAppSelector((s) => s.tasks.richById[taskId]);
+  const files = rich?.attachments ?? [];
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function onFiles(list: FileList | null) {
+    if (!list) return;
+    Array.from(list).forEach((file) => {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        notify('error', `${file.name} is ${(file.size / 1024 / 1024).toFixed(1)}MB — files must be under 512KB while attachments are stored in your browser.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => dispatch(addAttachment({ taskId, name: file.name, url: String(reader.result), size: file.size, mime: file.type }));
+      reader.onerror = () => notify('error', `Couldn't read ${file.name}.`);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      {files.map((f) => (
+        <div key={f.id} className="flex items-center gap-2 rounded-md border border-border p-2 text-sm">
+          <a href={f.url} download={f.name} className="min-w-0 flex-1 truncate text-primary hover:underline">{f.name}</a>
+          <span className="shrink-0 text-xs text-text-subtle">{(f.size / 1024).toFixed(0)} KB</span>
+          <button type="button" aria-label="Remove file" onClick={() => dispatch(removeAttachment({ taskId, attachmentId: f.id }))} className="shrink-0 text-text-subtle hover:text-danger">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+      {files.length === 0 && <p className="text-sm text-text-subtle">No files attached.</p>}
+      <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
+      <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border-strong px-3 py-2 text-sm text-text-muted hover:bg-surface-muted">
+        <Plus className="h-4 w-4" /> Attach files
+      </button>
+      <p className="text-[11px] text-text-subtle">Files are stored locally in your browser — up to 512KB each.</p>
     </div>
   );
 }

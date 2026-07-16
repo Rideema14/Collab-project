@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Box,
   CheckSquare,
   ChevronDown,
   ChevronRight,
+  FileStack,
   Hash,
   Home,
   Inbox,
@@ -45,6 +47,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu';
+import { TemplatesModal } from '@/features/templates/TemplatesModal';
 import { NotificationCenter } from './NotificationCenter';
 import { UserProfileMenu } from './UserProfileMenu';
 
@@ -129,6 +132,7 @@ function CreateMenu() {
   const activeListId = useAppSelector((s) => s.ui.activeListId);
   const [createProject] = useCreateProjectMutation();
   const [createTask] = useCreateTaskMutation();
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const now = () => new Date().toISOString();
   const firstSpaceId = spaces[0]?.id ?? DEFAULT_SPACE_ID;
@@ -163,39 +167,45 @@ function CreateMenu() {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="hidden h-9 items-center gap-1.5 rounded-xl bg-gradient-brand px-3 text-sm font-medium text-white shadow-glow transition-opacity hover:opacity-90 sm:flex"
-        >
-          <Plus className="h-4 w-4" />
-          New
-          <ChevronDown className="h-3.5 w-3.5 opacity-80" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[13rem]">
-        <DropdownMenuItem onSelect={() => void newTask()}>
-          <CheckSquare className="h-4 w-4 text-text-subtle" /> New task
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => void newProject()}>
-          <Hash className="h-4 w-4 text-text-subtle" /> New project
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={() =>
-            dispatch(
-              addSpace({ workspaceId: activeWsId, name: 'New Space', statusSetId: DEFAULT_STATUS_SET_ID, createdAt: now() })
-            )
-          }
-        >
-          <Box className="h-4 w-4 text-text-subtle" /> New space
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => dispatch(addWorkspace({ name: 'New Workspace', createdAt: now() }))}>
-          <LayoutGrid className="h-4 w-4 text-text-subtle" /> New workspace
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="hidden h-9 items-center gap-1.5 rounded-xl bg-gradient-brand px-3 text-sm font-medium text-white shadow-glow transition-opacity hover:opacity-90 sm:flex"
+          >
+            <Plus className="h-4 w-4" />
+            New
+            <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[13rem]">
+          <DropdownMenuItem onSelect={() => void newTask()}>
+            <CheckSquare className="h-4 w-4 text-text-subtle" /> New task
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void newProject()}>
+            <Hash className="h-4 w-4 text-text-subtle" /> New project
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setTemplatesOpen(true)}>
+            <FileStack className="h-4 w-4 text-text-subtle" /> From template…
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() =>
+              dispatch(
+                addSpace({ workspaceId: activeWsId, name: 'New Space', statusSetId: DEFAULT_STATUS_SET_ID, createdAt: now() })
+              )
+            }
+          >
+            <Box className="h-4 w-4 text-text-subtle" /> New space
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => dispatch(addWorkspace({ name: 'New Workspace', createdAt: now() }))}>
+            <LayoutGrid className="h-4 w-4 text-text-subtle" /> New workspace
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {templatesOpen && <TemplatesModal onClose={() => setTemplatesOpen(false)} />}
+    </>
   );
 }
 

@@ -75,4 +75,26 @@ async function remove(id) {
   return rowCount > 0;
 }
 
-module.exports = { STATUSES, findById, findAllByProject, create, updateStatus, update, remove };
+async function findOverdueWithAssignee() {
+  const { rows } = await pool.query(`
+    SELECT t.id, t.title, t.due_date, p.name AS project_name,
+           u.id AS assignee_id, u.name AS assignee_name, u.email AS assignee_email
+    FROM tasks t
+    JOIN projects p ON p.id = t.project_id
+    JOIN users u ON u.id = t.assignee_id
+    WHERE t.due_date IS NOT NULL AND t.due_date < CURRENT_DATE AND t.status <> 'Done'
+    ORDER BY u.id, t.due_date ASC
+  `);
+  return rows;
+}
+
+module.exports = {
+  STATUSES,
+  findById,
+  findAllByProject,
+  create,
+  updateStatus,
+  update,
+  remove,
+  findOverdueWithAssignee,
+};

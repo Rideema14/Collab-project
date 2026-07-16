@@ -1,8 +1,17 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn } from '@reduxjs/toolkit/query';
 import { ApiError } from '@/lib/api/client';
-import { projectsApi, tasksApi, usersApi, voiceApi } from '@/lib/api/endpoints';
-import type { Project, Task, User, VoiceParseResult } from '@/lib/types';
+import { aiApi, meetingsApi, projectsApi, tasksApi, usersApi, voiceApi, type MeetingInput } from '@/lib/api/endpoints';
+import type {
+  AiPlan,
+  Meeting,
+  MeetingContextPackage,
+  MeetingContextPayload,
+  Project,
+  Task,
+  User,
+  VoiceParseResult,
+} from '@/lib/types';
 
 /**
  * The board is keyed by arbitrary status NAME now (backend `tasks.status` is
@@ -40,7 +49,7 @@ const passthroughBaseQuery: BaseQueryFn<Thunk<unknown>, unknown, { status: numbe
 export const backendApi = createApi({
   reducerPath: 'backendApi',
   baseQuery: passthroughBaseQuery,
-  tagTypes: ['Projects', 'Board', 'Users'],
+  tagTypes: ['Projects', 'Board', 'Users', 'Meetings', 'MeetingContext'],
   endpoints: (build) => ({
     // ---- Users ----
     getUsers: build.query<User[], void>({
@@ -135,6 +144,62 @@ export const backendApi = createApi({
     >({
       query: ({ projectId, input }) => () => voiceApi.parse(projectId, input),
     }),
+
+    // ---- AI Workspace Assistant ----
+    sendAiCommand: build.mutation<AiPlan, { message: string; context: unknown }>({
+      query: (input) => () => aiApi.command(input),
+    }),
+
+    // ---- Meetings ----
+    getMeetings: build.query<Meeting[], void>({
+      query: () => () => meetingsApi.list(),
+      providesTags: (result) =>
+        result
+          ? [...result.map((m) => ({ type: 'Meetings' as const, id: m.id })), { type: 'Meetings' as const, id: 'LIST' }]
+          : [{ type: 'Meetings' as const, id: 'LIST' }],
+    }),
+    getMeeting: build.query<Meeting, number>({
+      query: (meetingId) => () => meetingsApi.get(meetingId),
+      providesTags: (_r, _e, meetingId) => [{ type: 'Meetings', id: meetingId }],
+    }),
+    createMeeting: build.mutation<Meeting, MeetingInput>({
+      query: (input) => () => meetingsApi.create(input),
+      invalidatesTags: [{ type: 'Meetings', id: 'LIST' }],
+    }),
+    updateMeeting: build.mutation<Meeting, { meetingId: number; input: Partial<MeetingInput> }>({
+      query: ({ meetingId, input }) => () => meetingsApi.update(meetingId, input),
+      invalidatesTags: (_r, _e, { meetingId }) => [
+        { type: 'Meetings', id: meetingId },
+        { type: 'Meetings', id: 'LIST' },
+      ],
+    }),
+    cancelMeeting: build.mutation<Meeting, number>({
+      query: (meetingId) => () => meetingsApi.cancel(meetingId),
+      invalidatesTags: (_r, _e, meetingId) => [
+        { type: 'Meetings', id: meetingId },
+        { type: 'Meetings', id: 'LIST' },
+      ],
+    }),
+    getMeetingContext: build.query<MeetingContextPackage, number>({
+      query: (meetingId) => () => meetingsApi.getContext(meetingId),
+      providesTags: (_r, _e, meetingId) => [{ type: 'MeetingContext', id: meetingId }],
+    }),
+    generateMeetingContext: build.mutation<MeetingContextPackage, number>({
+      query: (meetingId) => () => meetingsApi.generateContext(meetingId),
+      invalidatesTags: (_r, _e, meetingId) => [
+        { type: 'MeetingContext', id: meetingId },
+        { type: 'Meetings', id: meetingId },
+      ],
+    }),
+    // Not cached — called repeatedly as the schedule form's project/participant
+    // selection changes, so a mutation (fire-and-return) fits better than a
+    // query with a constantly-changing cache key.
+    previewMeetingContext: build.mutation<
+      MeetingContextPayload,
+      { projectIds: number[]; participantUserIds: number[] }
+    >({
+      query: (input) => () => meetingsApi.previewContext(input),
+    }),
   }),
 });
 
@@ -148,4 +213,13 @@ export const {
   useUpdateTaskMutation,
   useDeleteTaskMutation,
   useParseVoiceMutation,
+  useSendAiCommandMutation,
+  useGetMeetingsQuery,
+  useGetMeetingQuery,
+  useCreateMeetingMutation,
+  useUpdateMeetingMutation,
+  useCancelMeetingMutation,
+  useGetMeetingContextQuery,
+  useGenerateMeetingContextMutation,
+  usePreviewMeetingContextMutation,
 } = backendApi;

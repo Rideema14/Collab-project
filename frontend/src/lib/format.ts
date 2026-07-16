@@ -45,6 +45,16 @@ export function daysUntilDue(dueDate: string | null): number {
   return Math.round((due.getTime() - today.getTime()) / 86_400_000);
 }
 
+/** Minutes → compact duration, e.g. 0m, 45m, 1h 30m, 3h. */
+export function formatDuration(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  if (h === 0) return `${rem}m`;
+  if (rem === 0) return `${h}h`;
+  return `${h}h ${rem}m`;
+}
+
 /** Long card-footer date, e.g. "May 15, 2026". Always shows the year. */
 export function formatCardDate(isoDate: string): string {
   const [year, month, day] = dateOnly(isoDate).split('-').map(Number);

@@ -19,8 +19,6 @@ export interface UiState {
   activeListId: string | null;
   /** Task detail drawer target (backend task id), or null when closed. Not persisted. */
   openTaskId: number | null;
-  /** Voice task-capture modal (scoped to the active list). Not persisted. */
-  voiceCaptureOpen: boolean;
   /** Favorited list ids shown in the sidebar's Favorites section. Persisted. */
   favorites: string[];
 }
@@ -31,7 +29,6 @@ const initialState: UiState = {
   commandPaletteOpen: false,
   activeListId: null,
   openTaskId: null,
-  voiceCaptureOpen: false,
   favorites: [],
 };
 
@@ -63,9 +60,6 @@ const uiSlice = createSlice({
     closeTask(state) {
       state.openTaskId = null;
     },
-    setVoiceCaptureOpen(state, action: PayloadAction<boolean>) {
-      state.voiceCaptureOpen = action.payload;
-    },
     /** Star / unstar a list into the sidebar Favorites section. */
     toggleFavorite(state, action: PayloadAction<string>) {
       const id = action.payload;
@@ -91,7 +85,6 @@ export const {
   setActiveListId,
   openTask,
   closeTask,
-  setVoiceCaptureOpen,
   toggleFavorite,
   hydrateUi,
 } = uiSlice.actions;

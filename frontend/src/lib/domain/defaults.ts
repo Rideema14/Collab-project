@@ -51,9 +51,9 @@ export const PRIORITY_META: Record<Priority, { label: string; hue: number; rank:
 export function defaultRoles(): Role[] {
   return [
     {
-      id: 'role-owner',
-      name: 'Owner',
-      color: '#7c3aed',
+      id: 'role-admin',
+      name: 'Admin',
+      color: '#2563eb',
       system: true,
       permissions: [
         'task.create',
@@ -64,13 +64,6 @@ export function defaultRoles(): Role[] {
         'space.manage',
         'settings.manage',
       ],
-    },
-    {
-      id: 'role-admin',
-      name: 'Admin',
-      color: '#2563eb',
-      system: true,
-      permissions: ['task.create', 'task.edit', 'task.delete', 'status.manage', 'member.manage', 'space.manage'],
     },
     {
       id: 'role-member',

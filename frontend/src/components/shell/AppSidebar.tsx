@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  CalendarClock,
   ChevronRight,
   ChevronsLeft,
   Folder as FolderIcon,
@@ -16,6 +17,8 @@ import {
   Pencil,
   Plus,
   PanelLeft,
+  Shield,
+  Sparkles,
   Star,
   Trash2,
   Users,
@@ -32,6 +35,7 @@ import {
   selectSidebarCollapsed,
   selectMobileSidebarOpen,
   selectSessionUser,
+  selectMyPermissions,
 } from '@/store/selectors';
 import {
   addFolder,
@@ -103,6 +107,7 @@ export function AppSidebar() {
 const NAV = [
   { href: '/home', icon: Home, label: 'Home' },
   { href: '/inbox', icon: Inbox, label: 'Inbox' },
+  { href: '/ai', icon: Sparkles, label: 'AI Assistant' },
   { href: '/chat', icon: MessageSquare, label: 'Chat' },
   { href: '/people', icon: Users, label: 'People' },
 ];
@@ -115,6 +120,7 @@ function PanelContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigat
   const workspaces = useAppSelector(selectHierarchy).workspaces;
   const activeWsId = useAppSelector(selectActiveWorkspaceId);
   const user = useAppSelector(selectSessionUser);
+  const isAdmin = useAppSelector(selectMyPermissions).includes('member.manage');
   const activeWs = workspaces.find((w) => w.id === activeWsId) ?? workspaces[0];
 
   const favLists = favorites
@@ -154,6 +160,10 @@ function PanelContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigat
         {NAV.map((item) => (
           <NavItem key={item.href} {...item} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
+        {isAdmin && (
+          <NavItem href="/meetings" icon={CalendarClock} label="Meetings" collapsed={collapsed} onNavigate={onNavigate} />
+        )}
+        {isAdmin && <NavItem href="/admin" icon={Shield} label="Admin" collapsed={collapsed} onNavigate={onNavigate} />}
 
         {/* Favorites */}
         {!collapsed && favLists.length > 0 && (
@@ -285,7 +295,7 @@ function SpaceNode({
   const dispatch = useAppDispatch();
   const expanded = useAppSelector(selectExpanded);
   const folders = useAppSelector(selectFolders).filter((f) => f.spaceId === space.id);
-  const lists = useAppSelector(selectLists).filter((l) => l.spaceId === space.id && !l.folderId);
+  const lists = useAppSelector(selectLists).filter((l) => l.spaceId === space.id && !l.folderId && !l.archived);
   const createList = useCreateList();
   const open = expanded[space.id] !== false;
   const [adding, setAdding] = useState(false);
@@ -382,7 +392,7 @@ function SpaceNode({
 function FolderNode({ folder, onNavigate }: { folder: Folder; onNavigate?: () => void }) {
   const dispatch = useAppDispatch();
   const expanded = useAppSelector(selectExpanded);
-  const lists = useAppSelector(selectLists).filter((l) => l.folderId === folder.id);
+  const lists = useAppSelector(selectLists).filter((l) => l.folderId === folder.id && !l.archived);
   const createList = useCreateList();
   const open = expanded[folder.id] !== false;
   const [adding, setAdding] = useState(false);

@@ -1,5 +1,6 @@
 import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit';
 import type {
+  Attachment,
   Checklist,
   ChecklistItem,
   Dependency,
@@ -27,6 +28,8 @@ export interface ListViewPrefs {
   search: string;
   filterAssigneeIds: number[];
   filterTagIds: string[];
+  filterPriorities: Priority[];
+  filterOverdueOnly: boolean;
   showDone: boolean;
 }
 
@@ -45,6 +48,8 @@ export const DEFAULT_PREFS: ListViewPrefs = {
   search: '',
   filterAssigneeIds: [],
   filterTagIds: [],
+  filterPriorities: [],
+  filterOverdueOnly: false,
   showDone: true,
 };
 
@@ -184,6 +189,45 @@ const tasksSlice = createSlice({
         };
       },
     },
+    removeDependency(state, action: PayloadAction<{ taskId: number; dependencyId: string }>) {
+      const r = state.richById[action.payload.taskId];
+      if (r) r.dependencies = r.dependencies.filter((d) => d.id !== action.payload.dependencyId);
+    },
+    // ---- attachments (client-only, stored as data URLs) ----
+    addAttachment: {
+      reducer(state, action: PayloadAction<{ taskId: number; attachment: Attachment }>) {
+        const r = (state.richById[action.payload.taskId] ??= defaultRich(action.payload.taskId, null));
+        r.attachments.push(action.payload.attachment);
+      },
+      prepare(input: { taskId: number; name: string; url: string; size: number; mime: string }) {
+        return {
+          payload: {
+            taskId: input.taskId,
+            attachment: {
+              id: `att-${nanoid(6)}`,
+              name: input.name,
+              url: input.url,
+              size: input.size,
+              mime: input.mime,
+              addedAt: new Date().toISOString(),
+            },
+          },
+        };
+      },
+    },
+    removeAttachment(state, action: PayloadAction<{ taskId: number; attachmentId: string }>) {
+      const r = state.richById[action.payload.taskId];
+      if (r) r.attachments = r.attachments.filter((a) => a.id !== action.payload.attachmentId);
+    },
+    // ---- time tracking ----
+    logTime(state, action: PayloadAction<{ taskId: number; minutes: number }>) {
+      const r = (state.richById[action.payload.taskId] ??= defaultRich(action.payload.taskId, null));
+      r.timeSpentMinutes = Math.max(0, r.timeSpentMinutes + action.payload.minutes);
+    },
+    setTimeSpent(state, action: PayloadAction<{ taskId: number; minutes: number }>) {
+      const r = (state.richById[action.payload.taskId] ??= defaultRich(action.payload.taskId, null));
+      r.timeSpentMinutes = Math.max(0, action.payload.minutes);
+    },
     toggleWatcher(state, action: PayloadAction<{ taskId: number; userId: number }>) {
       const r = (state.richById[action.payload.taskId] ??= defaultRich(action.payload.taskId, null));
       r.watcherIds = r.watcherIds.includes(action.payload.userId)
@@ -192,8 +236,8 @@ const tasksSlice = createSlice({
     },
     // ---- view prefs ----
     setViewPrefs(state, action: PayloadAction<{ listId: string; changes: Partial<ListViewPrefs> }>) {
-      const cur = state.prefsByList[action.payload.listId] ?? DEFAULT_PREFS;
-      state.prefsByList[action.payload.listId] = { ...cur, ...action.payload.changes };
+      const cur = state.prefsByList[action.payload.listId];
+      state.prefsByList[action.payload.listId] = { ...DEFAULT_PREFS, ...cur, ...action.payload.changes };
     },
   },
 });
@@ -213,6 +257,11 @@ export const {
   toggleChecklistItem,
   setTags,
   addDependency,
+  removeDependency,
+  addAttachment,
+  removeAttachment,
+  logTime,
+  setTimeSpent,
   toggleWatcher,
   setViewPrefs,
 } = tasksSlice.actions;

@@ -71,6 +71,8 @@ export interface List {
   order: number;
   /** Optional per-list status-set override; falls back to the space's set. */
   statusSetId?: string;
+  /** Hidden from the tree when archived (the assistant's "archive project"). */
+  archived?: boolean;
   createdAt: string;
 }
 
@@ -226,7 +228,15 @@ export interface MemberMeta {
   roleId: string;
   /** Capacity in hours/week, used by the Workload view. */
   capacityHours: number;
-  status: 'active' | 'invited';
+  status: 'active' | 'invited' | 'suspended';
+}
+
+/** A named group of members (CLIENT-ONLY). */
+export interface Team {
+  id: string;
+  name: string;
+  color: string;
+  memberIds: number[];
 }
 
 export interface AuditEntry {

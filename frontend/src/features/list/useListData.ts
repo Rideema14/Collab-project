@@ -82,6 +82,8 @@ function matchesFilters(vm: TaskVM, prefs: ListViewPrefs): boolean {
   if (prefs.filterTagIds.length) {
     if (!prefs.filterTagIds.some((t) => vm.rich.tagIds.includes(t))) return false;
   }
+  if (prefs.filterPriorities.length && !prefs.filterPriorities.includes(vm.rich.priority)) return false;
+  if (prefs.filterOverdueOnly && !vm.isOverdue) return false;
   if (!prefs.showDone && vm.status.group === 'done') return false;
   return true;
 }
@@ -151,7 +153,10 @@ export function useListData(listId: string): ListData {
     skip: projectId == null,
   });
 
-  const prefs = prefsMap[listId] ?? DEFAULT_PREFS;
+  // Merge onto a fresh object only when the STORED prefs reference actually changes,
+  // so this doesn't invalidate the columns useMemo below on every unrelated render.
+  const storedPrefs = prefsMap[listId];
+  const prefs = useMemo(() => ({ ...DEFAULT_PREFS, ...storedPrefs }), [storedPrefs]);
 
   return useMemo<ListData>(() => {
     if (!board || !set) {

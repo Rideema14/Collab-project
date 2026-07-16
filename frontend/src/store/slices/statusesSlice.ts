@@ -121,6 +121,10 @@ const statusesSlice = createSlice({
         s.order = i;
       });
     },
+    /** Applied when a peer's status-set edit arrives over the realtime bus — replaces the whole set by id (see socketMiddleware). */
+    receiveStatusSet(state, action: PayloadAction<StatusSet>) {
+      state.sets[action.payload.id] = action.payload;
+    },
   },
 });
 
@@ -131,6 +135,7 @@ export const {
   updateStatus,
   removeStatus,
   reorderStatus,
+  receiveStatusSet,
 } = statusesSlice.actions;
 
 export default statusesSlice.reducer;

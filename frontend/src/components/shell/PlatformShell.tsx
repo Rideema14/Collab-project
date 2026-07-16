@@ -9,6 +9,7 @@ import { SessionSync } from '@/features/shell/SessionSync';
 import { AppSidebar } from './AppSidebar';
 import { AppTopbar } from './AppTopbar';
 import { CommandMenu } from './CommandMenu';
+import { AiButton } from './AiButton';
 
 /**
  * The authenticated platform shell: a floating glass sidebar + glass topbar +
@@ -51,6 +52,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
         <CommandMenu />
+        <AiButton />
       </div>
     </TooltipProvider>
   );

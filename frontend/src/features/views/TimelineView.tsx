@@ -35,6 +35,27 @@ export function TimelineView({ listId, mode = 'timeline' }: { listId: string; mo
     return { spans, min, total, indexById: new Map(tasks.map((t, i) => [t.id, i])) };
   }, [allTasks]);
 
+  const ROW_STRIDE = 38; // h-8 (32px) + space-y-1.5 (6px)
+  const links = useMemo(() => {
+    if (!model || mode !== 'gantt') return [];
+    return model.spans.flatMap((sp, ti) =>
+      sp.task.rich.dependencies
+        .filter((d) => d.type === 'blocked_by')
+        .map((d) => {
+          const si = model.indexById.get(d.taskId);
+          if (si === undefined) return null;
+          const src = model.spans[si];
+          return {
+            sx: ((src.end - model.min) / model.total) * 100,
+            sy: si * ROW_STRIDE + 16,
+            tx: ((sp.start - model.min) / model.total) * 100,
+            ty: ti * ROW_STRIDE + 16,
+          };
+        })
+        .filter((l): l is { sx: number; sy: number; tx: number; ty: number } => l !== null)
+    );
+  }, [model, mode]);
+
   if (!model) return <p className="py-10 text-center text-sm text-text-subtle">Nothing to schedule yet.</p>;
 
   const weeks = Math.ceil(model.total / (7 * DAY));
@@ -51,7 +72,29 @@ export function TimelineView({ listId, mode = 'timeline' }: { listId: string; mo
           ))}
         </div>
 
-        <div className="space-y-1.5">
+        <div className="relative space-y-1.5">
+          {mode === 'gantt' && links.length > 0 && (
+            <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+              <defs>
+                <marker id="gantt-arrow" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="var(--color-text-subtle)" />
+                </marker>
+              </defs>
+              {links.map((l, i) => (
+                <line
+                  key={i}
+                  x1={`${l.sx}%`}
+                  y1={l.sy}
+                  x2={`${l.tx}%`}
+                  y2={l.ty}
+                  stroke="var(--color-text-subtle)"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                  markerEnd="url(#gantt-arrow)"
+                />
+              ))}
+            </svg>
+          )}
           {model.spans.map(({ task, start, end }) => {
             const left = ((start - model.min) / model.total) * 100;
             const width = ((end - start) / model.total) * 100;
