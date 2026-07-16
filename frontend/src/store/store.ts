@@ -40,7 +40,7 @@ const PERSIST_VERSION = 1;
 
 // ui keeps only the durable rail state; transient fields reset each session.
 const uiPersisted = persistReducer(
-  { key: 'ui', version: PERSIST_VERSION, storage, whitelist: ['sidebarCollapsed'] },
+  { key: 'ui', version: PERSIST_VERSION, storage, whitelist: ['sidebarCollapsed', 'favorites'] },
   uiReducer
 );
 

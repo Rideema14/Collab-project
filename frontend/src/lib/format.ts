@@ -32,6 +32,29 @@ export function formatDueDate(isoDate: string): string {
   });
 }
 
+/**
+ * Whole days from today until `dueDate` (local calendar days). Negative = overdue,
+ * 0 = due today, Infinity = no due date. Used to flag "deadline very close".
+ */
+export function daysUntilDue(dueDate: string | null): number {
+  if (!dueDate) return Infinity;
+  const [y, m, d] = dateOnly(dueDate).split('-').map(Number);
+  const due = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((due.getTime() - today.getTime()) / 86_400_000);
+}
+
+/** Long card-footer date, e.g. "May 15, 2026". Always shows the year. */
+export function formatCardDate(isoDate: string): string {
+  const [year, month, day] = dateOnly(isoDate).split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 /** Today as 'YYYY-MM-DD' in the user's own timezone — for the date input's `min`. */
 export function todayIso(): string {
   const now = new Date();

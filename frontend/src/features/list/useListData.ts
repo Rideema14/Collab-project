@@ -6,6 +6,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectListById, selectStatusSetForList, selectRichById, selectPrefsByList } from '@/store/selectors';
 import { DEFAULT_PREFS, defaultRich, type ListViewPrefs } from '@/store/slices/tasksSlice';
 import { PRIORITY_META } from '@/lib/domain/defaults';
+import { effectivePriority } from '@/lib/domain/priority';
 import type { StatusDef, StatusSet, TaskRich, TaskVM } from '@/lib/domain/types';
 import type { Task } from '@/lib/types';
 import type { DynamicBoard } from '@/store/api/backendApi';
@@ -85,6 +86,18 @@ function matchesFilters(vm: TaskVM, prefs: ListViewPrefs): boolean {
   return true;
 }
 
+/**
+ * How urgent an *incomplete* task is — higher floats to the top. Completed tasks
+ * score below everything so they sink. Combines priority with deadline proximity
+ * so a high-priority item, or one whose deadline is very close, comes up first.
+ */
+function urgencyScore(vm: TaskVM): number {
+  if (vm.status.group === 'done') return -100;
+  // effectivePriority already folds in the deadline, so ranking by it makes
+  // high-priority AND near-deadline tasks rise to the top of the column.
+  return 4 - PRIORITY_META[effectivePriority(vm)].rank; // urgent 4 … none 0
+}
+
 function sortTasks(tasks: TaskVM[], sortBy: ListViewPrefs['sortBy']): TaskVM[] {
   const copy = tasks.slice();
   switch (sortBy) {
@@ -96,7 +109,10 @@ function sortTasks(tasks: TaskVM[], sortBy: ListViewPrefs['sortBy']): TaskVM[] {
       return copy.sort((a, b) => a.title.localeCompare(b.title));
     case 'manual':
     default:
-      return copy.sort((a, b) => a.rich.order - b.rich.order || a.id - b.id);
+      // Urgency-first, then the user's manual drag order as a stable tiebreaker.
+      return copy.sort(
+        (a, b) => urgencyScore(b) - urgencyScore(a) || a.rich.order - b.rich.order || a.id - b.id
+      );
   }
 }
 

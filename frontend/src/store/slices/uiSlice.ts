@@ -21,6 +21,8 @@ export interface UiState {
   openTaskId: number | null;
   /** Voice task-capture modal (scoped to the active list). Not persisted. */
   voiceCaptureOpen: boolean;
+  /** Favorited list ids shown in the sidebar's Favorites section. Persisted. */
+  favorites: string[];
 }
 
 const initialState: UiState = {
@@ -30,6 +32,7 @@ const initialState: UiState = {
   activeListId: null,
   openTaskId: null,
   voiceCaptureOpen: false,
+  favorites: [],
 };
 
 const uiSlice = createSlice({
@@ -63,6 +66,13 @@ const uiSlice = createSlice({
     setVoiceCaptureOpen(state, action: PayloadAction<boolean>) {
       state.voiceCaptureOpen = action.payload;
     },
+    /** Star / unstar a list into the sidebar Favorites section. */
+    toggleFavorite(state, action: PayloadAction<string>) {
+      const id = action.payload;
+      state.favorites = state.favorites.includes(id)
+        ? state.favorites.filter((f) => f !== id)
+        : [...state.favorites, id];
+    },
     /** Rehydrate persisted fields on the client after mount (see StoreProvider). */
     hydrateUi(state, action: PayloadAction<Partial<UiState>>) {
       if (typeof action.payload.sidebarCollapsed === 'boolean') {
@@ -82,6 +92,7 @@ export const {
   openTask,
   closeTask,
   setVoiceCaptureOpen,
+  toggleFavorite,
   hydrateUi,
 } = uiSlice.actions;
 

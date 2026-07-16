@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import clsx from 'clsx';
+import { ChevronDown, LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { Avatar } from '@/components/ui/Avatar';
@@ -27,15 +28,18 @@ export function UserProfileMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Account menu for ${user.name}`}
-        className="flex items-center gap-2 rounded-lg p-1 pr-2 transition-colors hover:bg-surface-muted"
+        className={clsx(
+          'flex items-center gap-2 rounded-xl border border-transparent p-1 pr-2 transition-colors hover:border-glass-border hover:bg-glass-border',
+          open && 'border-glass-border bg-glass-border'
+        )}
       >
         <Avatar name={user.name} />
         <span className="hidden max-w-28 truncate text-sm font-medium text-text sm:block">
           {user.name}
         </span>
-        <span aria-hidden="true" className="hidden text-text-subtle sm:block">
-          ⌄
-        </span>
+        <ChevronDown
+          className={clsx('hidden h-4 w-4 text-text-subtle transition-transform duration-200 sm:block', open && 'rotate-180')}
+        />
       </button>
 
       {open && (
@@ -59,9 +63,7 @@ export function UserProfileMenu() {
               onClick={toggleTheme}
               className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-text hover:bg-surface-muted"
             >
-              <span aria-hidden="true" className="w-5 text-center">
-                {theme === 'dark' ? '☀' : '☾'}
-              </span>
+              {theme === 'dark' ? <Sun className="h-4 w-4 text-text-muted" /> : <Moon className="h-4 w-4 text-text-muted" />}
               {theme === 'dark' ? 'Light theme' : 'Dark theme'}
             </button>
           </div>
@@ -76,9 +78,7 @@ export function UserProfileMenu() {
                 'text-danger hover:bg-danger-soft'
               )}
             >
-              <span aria-hidden="true" className="w-5 text-center">
-                ⇥
-              </span>
+              <LogOut className="h-4 w-4" />
               Sign out
             </button>
           </div>

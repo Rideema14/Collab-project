@@ -33,9 +33,11 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider delayDuration={200}>
       <SessionSync />
-      <div className="relative flex h-dvh overflow-hidden">
+      {/* One padded flex canvas: uniform gap between sidebar, topbar, and content
+          so spacing stays consistent instead of each piece owning its own margins. */}
+      <div className="relative flex h-dvh gap-3 overflow-hidden p-3">
         <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col px-2 pb-2 md:pl-0">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <AppTopbar />
           <main className="relative min-h-0 flex-1 overflow-hidden">
             {/* Keyed CSS fade replaces AnimatePresence: no Framer runtime in the

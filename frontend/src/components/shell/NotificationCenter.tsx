@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
+import { Bell, Check, X } from 'lucide-react';
 import { relativeTime } from '@/lib/format';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectNotifications, selectUnreadCount } from '@/store/selectors';
@@ -41,15 +42,16 @@ export function NotificationCenter() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-muted hover:text-text"
+        className={clsx(
+          'relative grid h-9 w-9 place-items-center rounded-xl text-text-muted transition-colors hover:bg-glass-border hover:text-text',
+          open && 'bg-glass-border text-text'
+        )}
       >
-        <span aria-hidden="true" className="text-base">
-          🔔
-        </span>
+        <Bell className="h-[18px] w-[18px]" />
         {unread > 0 && (
           <span
             aria-hidden="true"
-            className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-primary-fg"
+            className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-gradient-to-br from-[#fb7185] to-[#f43f5e] px-1 text-[10px] font-bold leading-none text-white shadow-[0_0_0_2px_var(--color-bg)]"
           >
             {unread > 9 ? '9+' : unread}
           </span>
@@ -78,9 +80,9 @@ export function NotificationCenter() {
 
           <ul className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <li className="flex flex-col items-center gap-1 px-4 py-10 text-center">
-                <span aria-hidden="true" className="text-2xl">
-                  🎉
+              <li className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-full bg-primary-soft text-primary">
+                  <Check className="h-5 w-5" />
                 </span>
                 <p className="text-sm font-medium text-text">You’re all caught up</p>
                 <p className="text-xs text-text-subtle">New activity will show up here.</p>
@@ -119,9 +121,9 @@ export function NotificationCenter() {
                       type="button"
                       onClick={() => dispatch(removeNotification(n.id))}
                       aria-label={`Dismiss “${n.title}”`}
-                      className="h-6 w-6 shrink-0 rounded text-text-subtle opacity-0 transition hover:bg-surface hover:text-text focus-visible:opacity-100 group-hover:opacity-100"
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded text-text-subtle opacity-0 transition hover:bg-surface hover:text-text focus-visible:opacity-100 group-hover:opacity-100"
                     >
-                      <span aria-hidden="true">✕</span>
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </li>

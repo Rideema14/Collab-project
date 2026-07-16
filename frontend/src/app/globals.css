@@ -266,6 +266,11 @@
    * theme is light or dark.
    */
   .cosmic-auth {
+    /* Always dark, independent of the app theme: force a dark color-scheme and an
+       explicit light base text colour so the always-dark auth pages never render
+       dark-on-dark when the rest of the app is light. */
+    color-scheme: dark;
+    color: #f5f6fa;
     --color-surface: rgb(255 255 255 / 0.05);
     --color-surface-muted: rgb(255 255 255 / 0.08);
     --color-text: #f5f6fa;
@@ -331,4 +336,76 @@
   100% {
     transform: translateX(100%);
   }
+}
+
+/* Mobile sidebar drawer entrance (fade-in / scale-in come from the Tailwind config). */
+@layer utilities {
+  .animate-slide-in-left {
+    animation: slide-in-left 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/*
+ * A scoped LIGHT theme island. Applied to the project/list view so its board and
+ * token-based controls render light (Bordio-style) even while the app shell stays
+ * dark. Mirrors the :root[data-theme='light'] token values; set on the element so
+ * its subtree inherits light tokens regardless of the app theme.
+ */
+.light-scope {
+  color-scheme: light;
+  --color-bg: #f4f6fb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f3f9;
+  --color-surface-raised: #ffffff;
+  --color-elevated: #ffffff;
+
+  --color-border: rgb(15 23 42 / 0.08);
+  --color-border-strong: rgb(15 23 42 / 0.16);
+
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #64748b;
+  --color-text-inverse: #ffffff;
+
+  --color-primary: #4f46e5;
+  --color-primary-hover: #6366f1;
+  --color-primary-soft: rgb(99 102 241 / 0.1);
+  --color-primary-fg: #ffffff;
+  --color-primary-on-soft: #4f46e5;
+
+  --color-accent: #8b5cf6;
+  --color-accent-soft: rgb(139 92 246 / 0.1);
+  --color-accent-fg: #ffffff;
+
+  --color-success: #16a34a;
+  --color-success-soft: #dcfce7;
+  --color-success-fg: #14532d;
+
+  --color-warning: #d97706;
+  --color-warning-soft: #fef3c7;
+  --color-warning-fg: #78350f;
+
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --color-danger-fg: #7f1d1d;
+
+  --color-focus: #6366f1;
+  --color-overlay: rgb(15 23 42 / 0.4);
+  --color-skeleton: rgb(15 23 42 / 0.06);
+
+  --glass-bg: rgb(255 255 255 / 0.7);
+  --glass-bg-strong: rgb(255 255 255 / 0.85);
+  --glass-border: rgb(15 23 42 / 0.08);
+
+  color: var(--color-text);
 }

@@ -95,7 +95,7 @@ export function BoardView({ listId }: { listId: string }) {
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveTask(null)}
     >
-      <div className="flex h-full gap-3 overflow-x-auto overflow-y-hidden px-4 py-4">
+      <div className="flex h-full gap-4 overflow-x-auto overflow-y-hidden px-5 py-5">
         {columns.map((col) => (
           <BoardColumn
             key={col.status.id}
@@ -111,7 +111,7 @@ export function BoardView({ listId }: { listId: string }) {
 
       <DragOverlay dropAnimation={{ duration: 220, easing: 'cubic-bezier(0.16,1,0.3,1)' }}>
         {activeTask && (
-          <div className="w-72 cursor-grabbing">
+          <div className="w-[264px] cursor-grabbing">
             <TaskCardContent task={activeTask} overlay />
           </div>
         )}
@@ -136,29 +136,54 @@ const BoardColumn = memo(function BoardColumn({
   const { theme } = useTheme();
   const { setNodeRef, isOver } = useDroppable({ id: `col:${column.status.id}` });
   const c = statusColors(column.status.hue, theme);
+  const [adding, setAdding] = useState(false);
+  const count = column.tasks.length;
 
   return (
-    <section className="flex w-72 shrink-0 animate-scale-in flex-col rounded-2xl border border-glass-border bg-glass">
-      <header className="flex items-center gap-2 px-3 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.solid, boxShadow: `0 0 12px ${c.solid}` }} />
+    <section
+      className="flex w-[288px] shrink-0 animate-scale-in flex-col rounded-2xl border border-glass-border"
+      style={{ background: theme === 'light' ? '#e5e8ef' : 'var(--color-surface-muted)' }}
+    >
+      <header
+        className="flex items-center gap-2 rounded-t-2xl px-4 pt-4 pb-3"
+        style={{ background: `linear-gradient(180deg, ${c.soft}, transparent)` }}
+      >
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.solid }} />
         <h3 className="text-sm font-semibold text-text">{column.status.name}</h3>
         <span
-          className="rounded-full px-1.5 text-xs font-medium"
+          className="rounded-md px-1.5 py-0.5 text-[11px] font-medium"
           style={{ backgroundColor: c.soft, color: c.onSoft }}
         >
-          {column.tasks.length}
+          {count} {count === 1 ? 'task' : 'tasks'}
         </span>
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          aria-label={`Add task to ${column.status.name}`}
+          className="ml-auto grid h-6 w-6 place-items-center rounded-md text-text-subtle transition-colors hover:bg-glass-border hover:text-text"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
       </header>
 
       <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 space-y-2 overflow-y-auto px-2 pb-2 transition-colors',
-          isOver && 'rounded-b-2xl bg-primary-soft/20 ring-2 ring-inset ring-[color:var(--color-primary)]/30'
+          'flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-3 transition-colors',
+          isOver && 'rounded-b-2xl bg-primary-soft/20 ring-1 ring-inset ring-[color:var(--color-primary)]/30'
         )}
       >
+        {adding && (
+          <QuickAddTask
+            listId={listId}
+            statusId={column.status.id}
+            open={adding}
+            onOpenChange={setAdding}
+            hideTrigger
+          />
+        )}
         <SortableContext items={column.tasks.map((t) => String(t.id))} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {column.tasks.map((task) => (
               <SortableCard
                 key={task.id}
@@ -170,6 +195,9 @@ const BoardColumn = memo(function BoardColumn({
             ))}
           </div>
         </SortableContext>
+        {count === 0 && !adding && (
+          <p className="px-1 py-6 text-center text-xs text-text-subtle">No tasks yet</p>
+        )}
         <QuickAddTask listId={listId} statusId={column.status.id} />
       </div>
     </section>
@@ -227,7 +255,7 @@ function CardMenu({ onOpen, onDelete }: { onOpen: () => void; onDelete: () => vo
           <button
             type="button"
             aria-label="Task actions"
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-glass-border bg-surface-raised/85 text-text-subtle backdrop-blur transition-colors hover:text-text data-[state=open]:opacity-100"
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-black/10 bg-white/90 text-[#64748b] shadow-sm backdrop-blur transition-colors hover:bg-white hover:text-[#334155] data-[state=open]:opacity-100"
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
@@ -252,7 +280,7 @@ function AddStatusButton({ listId }: { listId: string }) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex h-11 w-72 shrink-0 items-center gap-2 self-start rounded-2xl border border-dashed border-border-strong px-3 text-sm text-text-muted transition-colors hover:bg-glass hover:text-text"
+          className="flex h-11 w-[288px] shrink-0 items-center gap-2 self-start rounded-2xl border border-dashed border-border-strong px-4 text-sm text-text-muted transition-colors hover:bg-glass hover:text-text"
         >
           <Plus className="h-4 w-4" /> Add / manage statuses
         </button>
@@ -279,3 +307,5 @@ export function StatusManagerButton({ listId }: { listId: string }) {
     </Popover>
   );
 }
+
+

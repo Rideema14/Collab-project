@@ -17,6 +17,7 @@ export const selectSpaces = createSelector(
   (spaces, wsId) => spaces.filter((sp) => sp.workspaceId === wsId).sort((a, b) => a.order - b.order)
 );
 export const selectFolders = (s: RootState) => s.hierarchy.folders;
+export const selectFavorites = (s: RootState) => s.ui.favorites;
 export const selectLists = (s: RootState) => s.hierarchy.lists;
 export const selectExpanded = (s: RootState) => s.hierarchy.expanded;
 export const selectListById = (id: string) => (s: RootState) =>

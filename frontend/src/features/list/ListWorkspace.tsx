@@ -17,6 +17,7 @@ import { setActiveListId, setVoiceCaptureOpen } from '@/store/slices/uiSlice';
 import { setViewPrefs, DEFAULT_PREFS, type ViewKind } from '@/store/slices/tasksSlice';
 import { selectListById, selectPrefsByList, selectSpaceById } from '@/store/selectors';
 import dynamic from 'next/dynamic';
+import { softAccent } from '@/lib/domain/status-color';
 import { cn } from '@/lib/design/cn';
 import { Input } from '@/components/ui/Input';
 import { IconButton } from '@/components/ui/Misc';
@@ -94,13 +95,22 @@ export function ListWorkspace({ listId }: { listId: string }) {
     <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
       <div className="shrink-0 border-b border-border px-4 pt-3">
-        <div className="flex items-center gap-2 text-xs text-text-subtle">
-          <span>{space?.icon}</span>
+        <div className="flex items-center gap-1.5 text-xs text-text-subtle">
+          <span
+            className="h-3 w-3 rounded-[3px]"
+            style={{ background: softAccent(space?.hue ?? 211).line }}
+          />
           <span>{space?.name}</span>
-          <span>/</span>
+          <span className="text-text-subtle/60">/</span>
           <span className="font-medium text-text-muted">{list.name}</span>
         </div>
-        <h1 className="mt-1 text-lg font-semibold text-text">{list.name}</h1>
+        <div className="mt-1 flex items-center gap-2">
+          <span
+            className="h-5 w-1.5 rounded-full"
+            style={{ background: softAccent(space?.hue ?? 211).line }}
+          />
+          <h1 className="text-lg font-semibold text-text">{list.name}</h1>
+        </div>
 
         {/* View tabs */}
         <div className="mt-2 flex items-center gap-1 overflow-x-auto">

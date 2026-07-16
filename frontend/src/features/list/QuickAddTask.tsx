@@ -14,13 +14,26 @@ export function QuickAddTask({
   listId,
   statusId,
   variant = 'card',
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
 }: {
   listId: string;
   statusId: string;
   variant?: 'card' | 'row';
+  /** Controlled open state — when provided, the parent owns it (e.g. a header ＋). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** When controlled + closed, render nothing instead of the "Add task" button. */
+  hideTrigger?: boolean;
 }) {
   const { createTask } = useListActions(listId);
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    else setOpenState(next);
+  };
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -37,6 +50,7 @@ export function QuickAddTask({
   }
 
   if (!open) {
+    if (hideTrigger) return null;
     return (
       <button
         type="button"

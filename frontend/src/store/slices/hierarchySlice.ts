@@ -112,6 +112,15 @@ const hierarchySlice = createSlice({
         };
       },
     },
+    updateFolder(state, action: PayloadAction<{ id: string; changes: Partial<Folder> }>) {
+      const f = state.folders.find((x) => x.id === action.payload.id);
+      if (f) Object.assign(f, action.payload.changes);
+    },
+    /** Delete a folder; its lists fall back to sitting directly under the space. */
+    removeFolder(state, action: PayloadAction<string>) {
+      state.folders = state.folders.filter((f) => f.id !== action.payload);
+      for (const l of state.lists) if (l.folderId === action.payload) l.folderId = null;
+    },
     /** Attach a client List to an existing backend project id. */
     addList: {
       reducer(state, action: PayloadAction<List>) {
@@ -141,6 +150,10 @@ const hierarchySlice = createSlice({
     assignListStatusSet(state, action: PayloadAction<{ listId: string; statusSetId: string }>) {
       const list = state.lists.find((l) => l.id === action.payload.listId);
       if (list) list.statusSetId = action.payload.statusSetId;
+    },
+    updateList(state, action: PayloadAction<{ id: string; changes: Partial<List> }>) {
+      const l = state.lists.find((x) => x.id === action.payload.id);
+      if (l) Object.assign(l, action.payload.changes);
     },
     moveList(state, action: PayloadAction<{ listId: string; spaceId: string; folderId: string | null }>) {
       const list = state.lists.find((l) => l.id === action.payload.listId);
@@ -202,8 +215,11 @@ export const {
   addSpace,
   updateSpace,
   addFolder,
+  updateFolder,
+  removeFolder,
   addList,
   assignListStatusSet,
+  updateList,
   moveList,
   toggleExpanded,
   reconcileLists,
