@@ -65,6 +65,7 @@ function toVM(
     listId,
     title: task.title,
     assignee: task.assignee,
+    createdBy: task.createdBy,
     dueDate: task.dueDate,
     isOverdue: task.isOverdue,
     createdAt: task.createdAt,
@@ -83,9 +84,61 @@ function matchesFilters(vm: TaskVM, prefs: ListViewPrefs): boolean {
     if (!prefs.filterTagIds.some((t) => vm.rich.tagIds.includes(t))) return false;
   }
   if (prefs.filterPriorities.length && !prefs.filterPriorities.includes(vm.rich.priority)) return false;
-  if (prefs.filterOverdueOnly && !vm.isOverdue) return false;
+  if (prefs.filterStatusIds.length && !prefs.filterStatusIds.includes(vm.status.id)) return false;
+  if (prefs.filterSprintId && vm.rich.sprintId !== prefs.filterSprintId) return false;
+  if (prefs.filterCreatedBy && vm.createdBy?.id !== prefs.filterCreatedBy) return false;
+  if (!matchesDueFilter(vm, prefs.filterDue)) return false;
   if (!prefs.showDone && vm.status.group === 'done') return false;
   return true;
+}
+
+function matchesDueFilter(vm: TaskVM, filter: ListViewPrefs['filterDue']): boolean {
+  if (filter === 'any') return true;
+  if (filter === 'none') return !vm.dueDate;
+  if (filter === 'overdue') return vm.isOverdue;
+  if (!vm.dueDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  if (filter === 'today') return vm.dueDate === today;
+  if (filter === 'week') {
+    const weekAhead = new Date();
+    weekAhead.setDate(weekAhead.getDate() + 7);
+    return vm.dueDate >= today && vm.dueDate <= weekAhead.toISOString().slice(0, 10);
+  }
+  return true;
+}
+
+export interface TaskGroup {
+  key: string;
+  label: string;
+  hue: number;
+  tasks: TaskVM[];
+}
+
+const PRIORITY_ORDER: TaskVM['rich']['priority'][] = ['urgent', 'high', 'normal', 'low', 'none'];
+
+/**
+ * Groups tasks by assignee or priority for List/Table views. Status grouping is
+ * handled separately (via `columns` below) since it's also what the Board's
+ * columns are — keeping one computation for both avoids divergence.
+ */
+export function groupTasksBy(tasks: TaskVM[], groupBy: 'assignee' | 'priority'): TaskGroup[] {
+  if (groupBy === 'priority') {
+    return PRIORITY_ORDER.map((p) => ({
+      key: p,
+      label: PRIORITY_META[p].label,
+      hue: PRIORITY_META[p].hue,
+      tasks: tasks.filter((t) => t.rich.priority === p),
+    })).filter((g) => g.tasks.length > 0);
+  }
+  const map = new Map<string, TaskGroup>();
+  for (const t of tasks) {
+    const key = t.assignee ? String(t.assignee.id) : 'unassigned';
+    if (!map.has(key)) map.set(key, { key, label: t.assignee?.name ?? 'Unassigned', hue: 220, tasks: [] });
+    map.get(key)!.tasks.push(t);
+  }
+  return [...map.values()].sort((a, b) =>
+    a.key === 'unassigned' ? 1 : b.key === 'unassigned' ? -1 : a.label.localeCompare(b.label)
+  );
 }
 
 /**

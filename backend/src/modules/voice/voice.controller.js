@@ -61,7 +61,7 @@ const parseCommand = asyncHandler(async (req, res) => {
 const createFromVoice = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   const input = extractInput(req);
-  const result = await service.createTaskFromVoice({ projectId, ...input });
+  const result = await service.createTaskFromVoice({ projectId, ...input, createdBy: req.user.id });
   res.status(201).json({ success: true, data: result });
 });
 

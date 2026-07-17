@@ -12,10 +12,10 @@ import type { MemberMeta } from '@/lib/domain/types';
 import type { User } from '@/lib/types';
 
 /**
- * The People (members) directory — the real `GET /users` roster fused with the
- * client-side org model (role + capacity) and live task counts from the workspace
- * stats. Read-only: roles are CLIENT-ONLY (the API has no authorization model)
- * and only members with `member.manage` can change them, in the Admin panel.
+ * The People (members) directory — the real `GET /users` roster, with role and
+ * capacity labels drawn from local display-only state. A pure read-only
+ * directory: role/status/team management lives in /admin (server-enforced —
+ * see docs/ENTERPRISE_PLAN_V2.md), not here.
  */
 export function PeopleView() {
   const { notify } = useToast();
@@ -60,7 +60,7 @@ export function PeopleView() {
         </div>
         <button
           type="button"
-          onClick={() => notify('success', 'Invites are managed by your workspace admin.')}
+          onClick={() => notify('success', 'Invites are managed from Admin → Users.')}
           className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-white shadow-glow transition-opacity hover:opacity-90"
           style={{ background: 'var(--gradient-brand)' }}
         >
@@ -104,7 +104,7 @@ export function PeopleView() {
           </div>
         )}
         <p className="mt-3 text-xs text-text-subtle">
-          Roles and capacity tailor views and the workload planner. Admins can change them in Admin → Users.
+          Roles and capacity tailor views and the workload planner. Admins can manage roles, teams, and members in Admin.
         </p>
       </div>
     </div>

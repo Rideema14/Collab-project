@@ -3,12 +3,27 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CalendarClock } from 'lucide-react';
-import { useGetMeetingQuery, useCancelMeetingMutation } from '@/store/api/backendApi';
+import {
+  useGetMeetingQuery,
+  useCancelMeetingMutation,
+  useResendInvitationsMutation,
+} from '@/store/api/backendApi';
 import { useToast } from '@/lib/toast-context';
+import { relativeTime } from '@/lib/format';
 import { cn } from '@/lib/design/cn';
 import { Button } from '@/components/ui/Button';
+import { Section, Table } from '@/components/ui/Section';
 import { Avatar } from '@/components/domain/AvatarStack';
-import { RequireMeetingsAccess, ContextSection, formatMeetingTime, STATUS_LABEL, STATUS_CLASS } from './shared';
+import type { Meeting } from '@/lib/types';
+import {
+  RequireMeetingsAccess,
+  ContextSection,
+  formatMeetingTime,
+  STATUS_LABEL,
+  STATUS_CLASS,
+  EMAIL_STATUS_LABEL,
+  EMAIL_STATUS_CLASS,
+} from './shared';
 
 export function MeetingDetailView({ meetingId }: { meetingId: number }) {
   return (
@@ -18,11 +33,20 @@ export function MeetingDetailView({ meetingId }: { meetingId: number }) {
   );
 }
 
+function summarizeInvites(meeting: Meeting): string {
+  const sent = meeting.participants.filter((p) => p.emailStatus === 'sent' || p.emailStatus === 'delivered').length;
+  const failed = meeting.participants.filter((p) => p.emailStatus === 'failed').length;
+  const total = meeting.participants.length;
+  if (failed === 0) return `${sent}/${total} invites sent`;
+  return `${sent}/${total} invites sent, ${failed} failed`;
+}
+
 function Detail({ meetingId }: { meetingId: number }) {
   const { notify } = useToast();
   const router = useRouter();
   const { data: meeting, error, isFetching } = useGetMeetingQuery(meetingId);
   const [cancelMeeting, { isLoading: cancelling }] = useCancelMeetingMutation();
+  const [resendInvitations, { isLoading: resending }] = useResendInvitationsMutation();
 
   const status = (error as { status?: number } | undefined)?.status;
   const notFound = status === 404;
@@ -34,6 +58,16 @@ function Detail({ meetingId }: { meetingId: number }) {
       notify('success', `"${meeting.title}" cancelled`);
     } catch (err) {
       notify('error', err instanceof Error ? err.message : 'Failed to cancel meeting');
+    }
+  }
+
+  async function handleResend() {
+    if (!meeting) return;
+    try {
+      const updated = await resendInvitations(meeting.id).unwrap();
+      notify('success', summarizeInvites(updated));
+    } catch (err) {
+      notify('error', err instanceof Error ? err.message : 'Failed to resend invitations');
     }
   }
 
@@ -96,21 +130,54 @@ function Detail({ meetingId }: { meetingId: number }) {
                 </a>
               )}
 
-              <div>
-                <p className="mb-1.5 text-sm font-semibold text-text">Participants</p>
-                <div className="space-y-1">
+              <Section
+                title="Meeting Invitations"
+                subtitle={summarizeInvites(meeting)}
+                action={
+                  meeting.status !== 'cancelled' && (
+                    <Button size="sm" variant="secondary" loading={resending} onClick={handleResend}>
+                      Resend Invitations
+                    </Button>
+                  )
+                }
+              >
+                <Table head={['Recipient', 'Status', 'Sent time', 'Error']}>
                   {meeting.participants.map((p) => (
-                    <div key={p.id} className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5">
-                      <Avatar person={p} size={22} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-text">{p.name}</p>
-                        <p className="truncate text-xs text-text-subtle">{p.email}</p>
-                      </div>
-                      <span className="shrink-0 text-xs capitalize text-text-subtle">{p.inviteStatus}</span>
-                    </div>
+                    <tr key={p.id} className="border-t border-border">
+                      <td className="px-3 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Avatar person={p} size={22} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-text">{p.name}</p>
+                            <p className="truncate text-xs text-text-subtle">{p.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', EMAIL_STATUS_CLASS[p.emailStatus])}>
+                          {EMAIL_STATUS_LABEL[p.emailStatus]}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-text-muted">
+                        {p.emailSentAt ? (
+                          <span title={new Date(p.emailSentAt).toLocaleString()}>{relativeTime(p.emailSentAt)}</span>
+                        ) : (
+                          <span className="text-text-subtle">—</span>
+                        )}
+                      </td>
+                      <td className="max-w-[16rem] px-3 py-2 text-sm text-danger">
+                        {p.emailError ? (
+                          <span className="line-clamp-2" title={p.emailError}>
+                            {p.emailError}
+                          </span>
+                        ) : (
+                          <span className="text-text-subtle">—</span>
+                        )}
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              </div>
+                </Table>
+              </Section>
 
               {meeting.status !== 'cancelled' && <ContextSection meetingId={meeting.id} />}
 

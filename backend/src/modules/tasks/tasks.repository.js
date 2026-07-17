@@ -5,9 +5,11 @@ const STATUSES = ['To Do', 'In Progress', 'Done'];
 const SELECT_TASK = `
   SELECT t.id, t.project_id, t.title, t.status, t.due_date, t.created_at, t.updated_at,
          (t.due_date IS NOT NULL AND t.due_date < CURRENT_DATE AND t.status <> 'Done') AS is_overdue,
-         u.id AS assignee_id, u.name AS assignee_name, u.email AS assignee_email
+         u.id AS assignee_id, u.name AS assignee_name, u.email AS assignee_email,
+         c.id AS creator_id, c.name AS creator_name, c.email AS creator_email
   FROM tasks t
   LEFT JOIN users u ON u.id = t.assignee_id
+  LEFT JOIN users c ON c.id = t.created_by
 `;
 
 async function findById(id) {
@@ -22,13 +24,13 @@ async function findAllByProject(projectId) {
   return rows;
 }
 
-async function create({ projectId, title, status, assigneeId, dueDate }) {
+async function create({ projectId, title, status, assigneeId, dueDate, createdBy }) {
   // status is optional; the column default ('To Do') applies when it's null.
   const { rows } = await pool.query(
-    `INSERT INTO tasks (project_id, title, status, assignee_id, due_date)
-     VALUES ($1, $2, COALESCE($3, 'To Do'), $4, $5)
+    `INSERT INTO tasks (project_id, title, status, assignee_id, due_date, created_by)
+     VALUES ($1, $2, COALESCE($3, 'To Do'), $4, $5, $6)
      RETURNING id`,
-    [projectId, title, status ?? null, assigneeId ?? null, dueDate ?? null]
+    [projectId, title, status ?? null, assigneeId ?? null, dueDate ?? null, createdBy ?? null]
   );
   return findById(rows[0].id);
 }

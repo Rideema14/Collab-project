@@ -1,4 +1,5 @@
 const { ApiError } = require('../../utils/ApiError');
+const { logAudit } = require('../../utils/auditLog');
 const repository = require('./meetings.repository');
 const mailer = require('../../utils/email');
 
@@ -12,7 +13,7 @@ const MEETING_TYPES = ['Daily Standup', 'Weekly Review', 'Sprint Review', 'Custo
 const CONTEXT_LIMITATIONS = [
   "Status-change history isn't tracked yet, so this reflects each participant's current task state only — not what changed since the last meeting.",
   'Comments are stored in the browser only today and are not included.',
-  'Task blocking/dependencies are not tracked on the backend and are not included.',
+  "\"Blocked\" is a heuristic based on a task's status being literally named Blocked — there is no real dependency graph behind it.",
 ];
 
 function shapeMeeting(row) {
@@ -23,12 +24,16 @@ function shapeMeeting(row) {
     scheduledAt: row.scheduled_at,
     meetingUrl: row.meeting_url,
     status: row.status,
+    deployedAt: row.deployed_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     createdBy: { id: row.created_by_id, name: row.created_by_name, email: row.created_by_email },
   };
 }
 
+// email_status/email_error/etc come from findParticipants' LATERAL join onto
+// each recipient's most recent email_logs row; null when no send has been
+// attempted yet (e.g. a participant added but the send step hasn't run).
 function shapeParticipant(row) {
   return {
     id: row.id,
@@ -36,6 +41,10 @@ function shapeParticipant(row) {
     email: row.email,
     inviteStatus: row.invite_status,
     invitedAt: row.invited_at,
+    emailStatus: row.email_status ?? 'pending',
+    emailError: row.email_error ?? null,
+    emailSentAt: row.email_sent_at ?? null,
+    emailDeliveredAt: row.email_delivered_at ?? null,
   };
 }
 
@@ -69,8 +78,11 @@ function validateScheduledAt(value) {
 }
 
 const MAX_MEETING_URL_LEN = 2048;
-function validateMeetingUrl(value) {
-  if (value === undefined || value === null || value === '') return null;
+function validateMeetingUrl(value, { required = false } = {}) {
+  if (value === undefined || value === null || value === '') {
+    if (required) throw new ApiError(400, 'Meeting link is required');
+    return null;
+  }
   const trimmed = String(value).trim();
   if (trimmed.length > MAX_MEETING_URL_LEN) {
     throw new ApiError(400, `Meeting link must be ${MAX_MEETING_URL_LEN} characters or fewer`);
@@ -103,37 +115,49 @@ function isoDateNDaysFromNow(n) {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Sends one email and durably records the outcome in email_logs, driving
+ * meeting_participants.invite_status off the SAME attempt — this is the only
+ * place either of those gets written, replacing the old
+ * `.catch(console.error)` swallow that made every send look successful to
+ * callers no matter what actually happened with the provider.
+ */
+async function sendAndLogEmail(meetingRow, participant, subject, body) {
+  const log = await repository.createEmailLog({
+    meetingId: meetingRow.id,
+    recipientEmail: participant.email,
+    subject,
+    provider: 'emailjs',
+  });
+  await repository.updateEmailLog(log.id, { status: 'sending' });
+
+  try {
+    await mailer.send({ to: participant.email, subject, body });
+    await repository.updateEmailLog(log.id, { status: 'sent', sentAt: new Date().toISOString() });
+    await repository.setParticipantInviteStatus(meetingRow.id, participant.email, 'sent');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown email error';
+    await repository.updateEmailLog(log.id, { status: 'failed', errorMessage: message });
+    await repository.setParticipantInviteStatus(meetingRow.id, participant.email, 'failed');
+    console.error(`[meetings] failed to send "${subject}" to ${participant.email}:`, message);
+  }
+}
+
 async function sendInviteEmails(meetingRow, participants) {
   const when = new Date(meetingRow.scheduled_at).toLocaleString('en-US', {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
   const linkLine = meetingRow.meeting_url ? `\nJoin: ${meetingRow.meeting_url}` : '';
-  await Promise.all(
-    participants.map((p) =>
-      mailer
-        .send({
-          to: p.email,
-          subject: `Meeting invite: ${meetingRow.title}`,
-          body: `You've been invited to "${meetingRow.title}" (${meetingRow.type}) on ${when}.${linkLine}`,
-        })
-        .catch((err) => console.error(`[meetings] failed to send invite to ${p.email}:`, err))
-    )
-  );
+  const subject = `Meeting invite: ${meetingRow.title}`;
+  const body = `You've been invited to "${meetingRow.title}" (${meetingRow.type}) on ${when}.${linkLine}`;
+  await Promise.all(participants.map((p) => sendAndLogEmail(meetingRow, p, subject, body)));
 }
 
 async function sendCancellationEmails(meetingRow, participants) {
-  await Promise.all(
-    participants.map((p) =>
-      mailer
-        .send({
-          to: p.email,
-          subject: `Meeting cancelled: ${meetingRow.title}`,
-          body: `"${meetingRow.title}" has been cancelled.`,
-        })
-        .catch((err) => console.error(`[meetings] failed to send cancellation to ${p.email}:`, err))
-    )
-  );
+  const subject = `Meeting cancelled: ${meetingRow.title}`;
+  const body = `"${meetingRow.title}" has been cancelled.`;
+  await Promise.all(participants.map((p) => sendAndLogEmail(meetingRow, p, subject, body)));
 }
 
 /**
@@ -155,7 +179,11 @@ async function buildParticipantSections(projectIds, participants) {
       const tasks = rows.map(shapeContextTask);
       const completedTasks = tasks.filter((t) => t.status === 'Done');
       const overdueTasks = tasks.filter((t) => t.isOverdue);
-      const activeTasks = tasks.filter((t) => t.status !== 'Done' && !t.isOverdue);
+      // Heuristic: no dependency graph exists yet (see CONTEXT_LIMITATIONS), so
+      // "blocked" is read off a status literally named Blocked, same free-text
+      // status convention as everything else — not a real dependency check.
+      const blockedTasks = tasks.filter((t) => t.status.trim().toLowerCase() === 'blocked');
+      const activeTasks = tasks.filter((t) => t.status !== 'Done' && !t.isOverdue && !blockedTasks.includes(t));
       const upcomingDeadlines = tasks.filter(
         (t) => t.dueDate && !t.isOverdue && t.status !== 'Done' && t.dueDate >= today && t.dueDate <= weekAhead
       );
@@ -166,6 +194,7 @@ async function buildParticipantSections(projectIds, participants) {
         assignedTasks: tasks,
         completedTasks,
         activeTasks,
+        blockedTasks,
         overdueTasks,
         upcomingDeadlines,
       };
@@ -183,9 +212,93 @@ function flattenSections(participantSections) {
     assignedTasks: participantSections.flatMap((s) => withAssignee(s.assignedTasks, s)),
     completedTasks: participantSections.flatMap((s) => withAssignee(s.completedTasks, s)),
     activeTasks: participantSections.flatMap((s) => withAssignee(s.activeTasks, s)),
+    blockedTasks: participantSections.flatMap((s) => withAssignee(s.blockedTasks, s)),
     overdueTasks: participantSections.flatMap((s) => withAssignee(s.overdueTasks, s)),
     deadlines: participantSections.flatMap((s) => withAssignee(s.upcomingDeadlines, s)),
   };
+}
+
+function daysBetween(fromIso, toIso) {
+  const from = new Date(fromIso);
+  const to = new Date(toIso);
+  return Math.max(1, Math.round((Date.UTC(to.getFullYear(), to.getMonth(), to.getDate()) - Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())) / 86400000));
+}
+
+function taskList(tasks) {
+  return tasks.map((t) => `"${t.title}" (${t.projectName})`).join(', ');
+}
+
+/**
+ * Turns the same structured context data into ONE plain-text, paragraph-based
+ * prompt meant to be fed directly to an LLM by the external Meeting Bot. Pure
+ * deterministic string formatting — no AI call happens here, and nothing in
+ * this text is a generated summary, agenda, or recommendation; it only
+ * restates the underlying data in prose instead of tables. "Discussion
+ * points" below are a plain, mechanical enumeration of overdue/blocked items,
+ * not an AI-inferred judgment of what matters.
+ */
+function buildNarrative({ meeting, participants, projects, assignedTasks, completedTasks, activeTasks, blockedTasks, overdueTasks, deadlines, limitations }) {
+  const today = isoDateNDaysFromNow(0);
+  const paragraphs = [];
+
+  const when = new Date(meeting.scheduledAt).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
+  paragraphs.push(`Meeting: ${meeting.title} (${meeting.type}). Scheduled for ${when}.`);
+
+  const participantNames = participants.map((p) => p.name).join(', ') || 'no participants';
+  const projectNames = projects.map((p) => p.name).join(', ') || 'no projects';
+  paragraphs.push(
+    `This meeting has ${participants.length} participant(s): ${participantNames}. It covers ${projects.length} project(s): ${projectNames}.`
+  );
+
+  for (const p of participants) {
+    const mine = (arr) => arr.filter((t) => t.assigneeId === p.id);
+    const assigned = mine(assignedTasks);
+    const completed = mine(completedTasks);
+    const active = mine(activeTasks);
+    const blocked = mine(blockedTasks);
+    const overdue = mine(overdueTasks);
+    const due = mine(deadlines);
+
+    const bits = [];
+    bits.push(`${p.name} has ${assigned.length} assigned task(s) across the covered projects.`);
+    bits.push(completed.length ? `Completed: ${taskList(completed)}.` : 'No completed tasks.');
+    bits.push(active.length ? `In progress: ${taskList(active)}.` : 'Nothing currently in progress.');
+    bits.push(blocked.length ? `Blocked: ${taskList(blocked)}.` : 'No blocked tasks.');
+    bits.push(
+      overdue.length
+        ? `Overdue: ${overdue.map((t) => `"${t.title}" (${t.projectName}, ${daysBetween(t.dueDate, today)} day(s) overdue)`).join(', ')}.`
+        : 'Nothing overdue.'
+    );
+    bits.push(due.length ? `Due within the next 7 days: ${taskList(due)}.` : 'No deadlines in the next 7 days.');
+    paragraphs.push(bits.join(' '));
+  }
+
+  const projectSummaries = projects.map((proj) => {
+    const inProj = (arr) => arr.filter((t) => t.projectId === proj.id);
+    const total = inProj(assignedTasks).length;
+    const done = inProj(completedTasks).length;
+    const over = inProj(overdueTasks).length;
+    const blocked = inProj(blockedTasks).length;
+    return `${proj.name}: ${total} task(s) total, ${done} completed, ${over} overdue, ${blocked} blocked.`;
+  });
+  if (projectSummaries.length) paragraphs.push(`Project summaries: ${projectSummaries.join(' ')}`);
+
+  const discussion = [];
+  for (const t of overdueTasks) {
+    discussion.push(`"${t.title}" (${t.projectName}) is overdue by ${daysBetween(t.dueDate, today)} day(s), assigned to ${t.assigneeName}.`);
+  }
+  for (const t of blockedTasks) {
+    discussion.push(`"${t.title}" (${t.projectName}) is marked Blocked, assigned to ${t.assigneeName}.`);
+  }
+  paragraphs.push(
+    discussion.length
+      ? `Discussion points: ${discussion.join(' ')}`
+      : 'Discussion points: nothing overdue or blocked across the covered projects.'
+  );
+
+  paragraphs.push(`Limitations of this context: ${limitations.join(' ')}`);
+
+  return paragraphs.join('\n\n');
 }
 
 /**
@@ -204,8 +317,8 @@ async function buildContextPackage(meetingRow) {
     participants
   );
 
-  return {
-    schemaVersion: 2,
+  const payload = {
+    schemaVersion: 3,
     meetingId: meetingRow.id,
     generatedAt: new Date().toISOString(),
     meeting: shapeMeeting(meetingRow),
@@ -214,6 +327,8 @@ async function buildContextPackage(meetingRow) {
     limitations: CONTEXT_LIMITATIONS,
     ...flattenSections(participantSections),
   };
+  payload.narrative = buildNarrative(payload);
+  return payload;
 }
 
 /**
@@ -221,13 +336,13 @@ async function buildContextPackage(meetingRow) {
  * exist yet — used to preview each invitee's task breakdown live while an
  * admin is still picking projects/participants on the schedule form.
  */
-async function previewContext({ projectIds, participantUserIds }) {
+async function previewContext({ projectIds, participantUserIds, organizationId }) {
   const cleanProjectIds = validateIdArray(projectIds, 'projectIds');
   const cleanParticipantIds = validateIdArray(participantUserIds, 'participantUserIds');
 
   const [projects, participants] = await Promise.all([
-    repository.findProjectsByIds(cleanProjectIds),
-    repository.findUsersByIds(cleanParticipantIds),
+    repository.findProjectsByIds(cleanProjectIds, organizationId),
+    repository.findUsersByIds(cleanParticipantIds, organizationId),
   ]);
   const participantSections = await buildParticipantSections(
     projects.map((p) => p.id),
@@ -244,15 +359,24 @@ async function previewContext({ projectIds, participantUserIds }) {
   };
 }
 
-async function createMeeting({ title, type, scheduledAt, meetingUrl, projectIds, participantUserIds, createdBy }) {
+async function createMeeting({ title, type, scheduledAt, meetingUrl, projectIds, participantUserIds, createdBy, organizationId }) {
   if (!title || !title.trim()) {
     throw new ApiError(400, 'Meeting title is required');
   }
   const cleanType = validateType(type);
   const cleanScheduledAt = validateScheduledAt(scheduledAt);
-  const cleanMeetingUrl = validateMeetingUrl(meetingUrl);
+  const cleanMeetingUrl = validateMeetingUrl(meetingUrl, { required: true });
   const cleanProjectIds = validateIdArray(projectIds, 'projectIds');
   const cleanParticipantIds = validateIdArray(participantUserIds, 'participantUserIds');
+
+  // Scope both lists to the caller's own org before persisting the association —
+  // closes the same gap previewContext had (see meetings.repository.js).
+  const [scopedProjects, scopedParticipants] = await Promise.all([
+    repository.findProjectsByIds(cleanProjectIds, organizationId),
+    repository.findUsersByIds(cleanParticipantIds, organizationId),
+  ]);
+  if (!scopedProjects.length) throw new ApiError(400, 'projectIds must reference real projects in your organization');
+  if (!scopedParticipants.length) throw new ApiError(400, 'participantUserIds must reference real users in your organization');
 
   const meetingRow = await repository.create({
     title: title.trim(),
@@ -260,9 +384,13 @@ async function createMeeting({ title, type, scheduledAt, meetingUrl, projectIds,
     scheduledAt: cleanScheduledAt,
     meetingUrl: cleanMeetingUrl,
     createdBy,
+    organizationId,
   });
-  await repository.setProjects(meetingRow.id, cleanProjectIds);
-  await repository.setParticipants(meetingRow.id, cleanParticipantIds);
+  await repository.setProjects(meetingRow.id, scopedProjects.map((p) => p.id));
+  await repository.setParticipants(meetingRow.id, scopedParticipants.map((p) => p.id));
+  logAudit({ organizationId, actorId: createdBy, action: 'meeting.create', targetType: 'meeting', targetId: meetingRow.id }).catch(
+    (err) => console.error('[audit] failed to log meeting.create:', err)
+  );
 
   const participants = await repository.findParticipants(meetingRow.id);
   await sendInviteEmails(meetingRow, participants);
@@ -270,8 +398,8 @@ async function createMeeting({ title, type, scheduledAt, meetingUrl, projectIds,
   return getMeetingDetail(meetingRow.id);
 }
 
-async function listMeetings() {
-  const rows = await repository.findAll();
+async function listMeetings(organizationId) {
+  const rows = await repository.findAll(organizationId);
   return Promise.all(
     rows.map(async (row) => {
       const [projects, participants] = await Promise.all([
@@ -321,12 +449,14 @@ async function updateMeeting(id, fields) {
     updates.scheduledAt = validateScheduledAt(fields.scheduledAt);
   }
   if (fields.meetingUrl !== undefined) {
-    updates.meetingUrl = validateMeetingUrl(fields.meetingUrl);
+    updates.meetingUrl = validateMeetingUrl(fields.meetingUrl, { required: true });
   }
 
   if (fields.projectIds !== undefined) {
     const cleanProjectIds = validateIdArray(fields.projectIds, 'projectIds');
-    await repository.setProjects(id, cleanProjectIds);
+    const scopedProjects = await repository.findProjectsByIds(cleanProjectIds, existing.organization_id);
+    if (!scopedProjects.length) throw new ApiError(400, 'projectIds must reference real projects in your organization');
+    await repository.setProjects(id, scopedProjects.map((p) => p.id));
   }
 
   // Only email participants who are newly added by this edit — re-inviting
@@ -335,8 +465,10 @@ async function updateMeeting(id, fields) {
   if (fields.participantUserIds !== undefined) {
     const before = new Set((await repository.findParticipants(id)).map((p) => p.id));
     const cleanParticipantIds = validateIdArray(fields.participantUserIds, 'participantUserIds');
-    await repository.setParticipants(id, cleanParticipantIds);
-    newlyAdded = cleanParticipantIds.filter((pid) => !before.has(pid));
+    const scopedParticipants = await repository.findUsersByIds(cleanParticipantIds, existing.organization_id);
+    if (!scopedParticipants.length) throw new ApiError(400, 'participantUserIds must reference real users in your organization');
+    await repository.setParticipants(id, scopedParticipants.map((p) => p.id));
+    newlyAdded = scopedParticipants.map((p) => p.id).filter((pid) => !before.has(pid));
   }
 
   if (Object.keys(updates).length > 0) {
@@ -353,7 +485,7 @@ async function updateMeeting(id, fields) {
   return getMeetingDetail(id);
 }
 
-async function cancelMeeting(id) {
+async function cancelMeeting(id, actorId) {
   const existing = await repository.findById(id);
   if (!existing) throw new ApiError(404, 'Meeting not found');
   if (existing.status === 'cancelled') return getMeetingDetail(id);
@@ -361,8 +493,57 @@ async function cancelMeeting(id) {
   await repository.updateStatus(id, 'cancelled');
   const participants = await repository.findParticipants(id);
   await sendCancellationEmails(existing, participants);
+  logAudit({
+    organizationId: existing.organization_id,
+    actorId,
+    action: 'meeting.cancel',
+    targetType: 'meeting',
+    targetId: id,
+  }).catch((err) => console.error('[audit] failed to log meeting.cancel:', err));
 
   return getMeetingDetail(id);
+}
+
+/**
+ * Re-runs the invite send for every current participant, creating a fresh
+ * email_logs row per recipient (a new attempt — prior rows stay as history)
+ * and updating invite_status off that new attempt. Used for both "nothing
+ * arrived the first time" and "I added someone after the initial invite."
+ */
+async function resendInvitations(id, actorId) {
+  const existing = await repository.findById(id);
+  if (!existing) throw new ApiError(404, 'Meeting not found');
+  if (existing.status === 'cancelled') {
+    throw new ApiError(400, 'Cannot resend invitations for a cancelled meeting');
+  }
+
+  const participants = await repository.findParticipants(id);
+  if (!participants.length) throw new ApiError(400, 'This meeting has no participants to invite');
+
+  await sendInviteEmails(existing, participants);
+  logAudit({
+    organizationId: existing.organization_id,
+    actorId,
+    action: 'meeting.invite.resend',
+    targetType: 'meeting',
+    targetId: id,
+  }).catch((err) => console.error('[audit] failed to log meeting.invite.resend:', err));
+
+  return getMeetingDetail(id);
+}
+
+async function deleteMeeting(id, actorId) {
+  const existing = await repository.findById(id);
+  if (!existing) throw new ApiError(404, 'Meeting not found');
+
+  await repository.remove(id);
+  logAudit({
+    organizationId: existing.organization_id,
+    actorId,
+    action: 'meeting.delete',
+    targetType: 'meeting',
+    targetId: id,
+  }).catch((err) => console.error('[audit] failed to log meeting.delete:', err));
 }
 
 async function generateContext(id) {
@@ -389,14 +570,57 @@ async function getContext(id) {
   return { meetingId: pkg.meeting_id, generatedAt: pkg.generated_at, payload: pkg.payload };
 }
 
+/**
+ * Marks a meeting as deployed to the external Meeting Bot: builds a fresh
+ * context snapshot, stores it (separately from meeting_context_packages, which
+ * keeps updating on every "Regenerate" — this snapshot is frozen at the moment
+ * of deploy), and stamps meetings.deployed_at. This is ONLY the API contract —
+ * nothing here actually calls an external bot yet.
+ */
+async function deployMeeting(id, actorId) {
+  const meetingRow = await repository.findById(id);
+  if (!meetingRow) throw new ApiError(404, 'Meeting not found');
+  if (meetingRow.status === 'cancelled') {
+    throw new ApiError(400, 'Cannot deploy a cancelled meeting');
+  }
+
+  const payload = await buildContextPackage(meetingRow);
+  await repository.upsertContextPackage(id, payload);
+  const deployment = await repository.upsertDeployment(id, payload);
+  await repository.markDeployed(id, deployment.deployed_at);
+  if (meetingRow.status === 'scheduled') {
+    await repository.updateStatus(id, 'context_ready');
+  }
+  logAudit({ organizationId: meetingRow.organization_id, actorId, action: 'meeting.deploy', targetType: 'meeting', targetId: id }).catch(
+    (err) => console.error('[audit] failed to log meeting.deploy:', err)
+  );
+
+  return { deployed: true, deployedAt: deployment.deployed_at, context: deployment.context };
+}
+
+async function getDeploymentStatus(id) {
+  const meetingRow = await repository.findById(id);
+  if (!meetingRow) throw new ApiError(404, 'Meeting not found');
+  const deployment = await repository.getDeployment(id);
+  return {
+    deployed: Boolean(meetingRow.deployed_at),
+    deployedAt: meetingRow.deployed_at ?? null,
+    context: deployment?.context ?? null,
+  };
+}
+
 module.exports = {
   MEETING_TYPES,
   createMeeting,
   listMeetings,
   getMeetingDetail,
   updateMeeting,
+  deleteMeeting,
   cancelMeeting,
+  resendInvitations,
   generateContext,
   getContext,
   previewContext,
+  deployMeeting,
+  getDeploymentStatus,
 };

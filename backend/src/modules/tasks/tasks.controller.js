@@ -5,7 +5,15 @@ const createTask = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   // `status` is optional (custom status system); omit it to default to 'To Do'.
   const { title, status, assigneeId, dueDate } = req.body || {};
-  const task = await service.createTask({ projectId, title, status, assigneeId, dueDate });
+  const task = await service.createTask({
+    projectId,
+    title,
+    status,
+    assigneeId,
+    dueDate,
+    createdBy: req.user.id,
+    organizationId: req.organizationId,
+  });
   res.status(201).json({ success: true, data: task });
 });
 
@@ -31,7 +39,7 @@ const updateTask = asyncHandler(async (req, res) => {
 
 const deleteTask = asyncHandler(async (req, res) => {
   const { taskId } = req.params;
-  await service.deleteTask(taskId);
+  await service.deleteTask(taskId, { actorId: req.user.id, organizationId: req.organizationId });
   res.status(204).send();
 });
 

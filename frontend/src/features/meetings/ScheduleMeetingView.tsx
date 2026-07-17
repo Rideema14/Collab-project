@@ -70,6 +70,7 @@ function ScheduleForm() {
     e.preventDefault();
     if (!title.trim()) return setError('Meeting title is required');
     if (!scheduledAt) return setError('Pick a date and time');
+    if (!meetingUrl.trim()) return setError('Meeting link is required');
     if (projectIds.size === 0) return setError('Select at least one project');
     if (participantIds.size === 0) return setError('Select at least one participant');
 
@@ -82,13 +83,18 @@ function ScheduleForm() {
         title: title.trim(),
         type,
         scheduledAt: parsed.toISOString(),
-        meetingUrl: meetingUrl.trim() || null,
+        meetingUrl: meetingUrl.trim(),
         projectIds: [...projectIds],
         participantUserIds: [...participantIds],
       }).unwrap();
+      const sent = meeting.participants.filter((p) => p.emailStatus === 'sent' || p.emailStatus === 'delivered').length;
+      const failed = meeting.participants.filter((p) => p.emailStatus === 'failed').length;
+      const total = meeting.participants.length;
       notify(
-        'success',
-        `"${title.trim()}" scheduled — invites sent to ${participantIds.size} participant${participantIds.size === 1 ? '' : 's'}`
+        failed > 0 ? 'error' : 'success',
+        failed > 0
+          ? `"${title.trim()}" scheduled — ${sent}/${total} invites sent, ${failed} failed (open the meeting to resend)`
+          : `"${title.trim()}" scheduled — ${sent}/${total} invite${total === 1 ? '' : 's'} sent`
       );
       router.push(`/meetings/${meeting.id}`);
     } catch (err) {
@@ -167,11 +173,12 @@ function ScheduleForm() {
 
           <div className="space-y-1.5">
             <label htmlFor="meeting-url" className="text-sm font-medium text-text">
-              Meeting link <span className="font-normal text-text-subtle">(optional)</span>
+              Meeting link
             </label>
             <input
               id="meeting-url"
               type="url"
+              required
               value={meetingUrl}
               onChange={(e) => setMeetingUrl(e.target.value)}
               placeholder="https://meet.google.com/…"

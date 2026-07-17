@@ -45,7 +45,7 @@ const GROUPS: StatusGroup[] = ['not_started', 'active', 'done'];
  * editing one project's workflow never affects another's.
  */
 export function StatusManager({ listId }: { listId: string }) {
-  const { set, addNew, recolor, regroup, reorder, rename, setArchived, remove } =
+  const { set, addNew, recolor, regroup, reorder, rename, setArchived, setWipLimit, remove } =
     useStatusActions(listId);
   const [newName, setNewName] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -94,6 +94,7 @@ export function StatusManager({ listId }: { listId: string }) {
                 onRegroup={(group) => regroup(status.id, group)}
                 onArchive={() => setArchived(status.id, true)}
                 onDelete={() => remove(status.id)}
+                onSetWipLimit={(limit) => setWipLimit(status.id, limit)}
               />
             ))}
           </ul>
@@ -173,6 +174,7 @@ function SortableStatusRow({
   onRegroup,
   onArchive,
   onDelete,
+  onSetWipLimit,
 }: {
   status: StatusDef;
   canArchive: boolean;
@@ -182,6 +184,7 @@ function SortableStatusRow({
   onRegroup: (group: StatusGroup) => void;
   onArchive: () => void;
   onDelete: () => void;
+  onSetWipLimit: (limit: number | null) => void;
 }) {
   const { theme } = useTheme();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
@@ -245,7 +248,7 @@ function SortableStatusRow({
         </div>
       </div>
 
-      <div className="mt-1.5 pl-6">
+      <div className="mt-1.5 flex items-center gap-2 pl-6">
         <select
           aria-label={`Group for ${status.name}`}
           value={status.group}
@@ -258,6 +261,17 @@ function SortableStatusRow({
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-1 text-xs text-text-subtle">
+          WIP limit
+          <input
+            type="number"
+            min={0}
+            value={status.wipLimit ?? ''}
+            onChange={(e) => onSetWipLimit(e.target.value ? Number(e.target.value) : null)}
+            placeholder="—"
+            className="h-6 w-12 rounded border border-border bg-surface px-1 text-xs text-text-muted"
+          />
+        </label>
       </div>
     </li>
   );

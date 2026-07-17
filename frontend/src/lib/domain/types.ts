@@ -100,6 +100,8 @@ export interface StatusDef {
    * still hold tasks) and from status pickers. They can be un-archived at any time.
    */
   archived?: boolean;
+  /** Work-in-progress cap. When a column's task count exceeds this, the board flags it — advisory, not enforced. */
+  wipLimit?: number | null;
 }
 
 export interface StatusSet {
@@ -108,17 +110,49 @@ export interface StatusSet {
   statuses: StatusDef[];
 }
 
+/**
+ * A lightweight, per-list categorization tasks can be assigned to — enough to
+ * filter by "sprint" (as requested). Deliberately NOT a full sprint lifecycle
+ * (no start/end dates, sprint board, or burndown) — that's a materially bigger
+ * feature nobody asked for yet.
+ */
+export interface SprintDef {
+  id: string;
+  listId: string;
+  name: string;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Rich task model (CLIENT-ONLY extensions keyed by backend task id)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Priority = 'urgent' | 'high' | 'normal' | 'low' | 'none';
 
+export type SubtaskStatus = 'todo' | 'in_progress' | 'done';
+
 export interface Subtask {
   id: string;
   title: string;
+  /** Kept in sync with `status` (`status === 'done'`) — older persisted subtasks only have this field. */
   done: boolean;
+  /** Optional on older persisted subtasks; read via `normalizeSubtask`. */
+  status?: SubtaskStatus;
   assigneeId: number | null;
+  priority?: Priority;
+  dueDate?: string | null;
+}
+
+/** Fills in defaults for subtask fields that predate this shape (redux-persist keeps old blobs as-is). */
+export function normalizeSubtask(s: Subtask): Required<Subtask> {
+  return {
+    id: s.id,
+    title: s.title,
+    done: s.done,
+    status: s.status ?? (s.done ? 'done' : 'todo'),
+    assigneeId: s.assigneeId ?? null,
+    priority: s.priority ?? 'none',
+    dueDate: s.dueDate ?? null,
+  };
 }
 
 export interface ChecklistItem {
@@ -183,6 +217,8 @@ export interface TaskRich {
   /** Manual ordering within a status column (backend has no position column). */
   order: number;
   coverHue: number | null;
+  /** This list's sprint the task belongs to, or null. See SprintDef. */
+  sprintId: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,6 +293,7 @@ export interface TaskVM {
   listId: string;
   title: string;
   assignee: User | null;
+  createdBy: User | null;
   dueDate: string | null;
   isOverdue: boolean;
   createdAt: string;

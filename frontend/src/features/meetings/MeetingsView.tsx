@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { CalendarClock, Plus, Users2 } from 'lucide-react';
-import { useGetMeetingsQuery } from '@/store/api/backendApi';
+import { useGetMeetingsQuery, useDeleteMeetingMutation } from '@/store/api/backendApi';
+import { useToast } from '@/lib/toast-context';
 import { cn } from '@/lib/design/cn';
 import { Section, Table } from '@/components/ui/Section';
 import { RequireMeetingsAccess, formatMeetingTime, STATUS_LABEL, STATUS_CLASS } from './shared';
@@ -16,7 +17,19 @@ export function MeetingsView() {
 }
 
 function MeetingsOverview() {
+  const { notify } = useToast();
   const { data: meetings = [], isLoading } = useGetMeetingsQuery();
+  const [deleteMeeting, { isLoading: deleting }] = useDeleteMeetingMutation();
+
+  async function handleDelete(id: number, title: string) {
+    if (!window.confirm(`Delete "${title}" from meeting history? This can't be undone.`)) return;
+    try {
+      await deleteMeeting(id).unwrap();
+      notify('success', `Deleted "${title}"`);
+    } catch (err) {
+      notify('error', err instanceof Error ? err.message : 'Failed to delete meeting');
+    }
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -82,13 +95,21 @@ function MeetingsOverview() {
                     </span>
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-1.5">
                       <Link
                         href={`/meetings/${m.id}`}
                         className="rounded border border-border px-2 py-1 text-xs text-text-muted hover:bg-glass-border"
                       >
                         View
                       </Link>
+                      <button
+                        type="button"
+                        disabled={deleting}
+                        onClick={() => handleDelete(m.id, m.title)}
+                        className="rounded border border-border px-2 py-1 text-xs text-danger hover:bg-danger-soft disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>

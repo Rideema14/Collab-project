@@ -1,15 +1,25 @@
 import { api } from './client';
 import type {
+  AdminAnalytics,
+  AdminDashboard,
+  AdminUser,
   AiPlan,
+  AuditLogEntry,
   AuthPayload,
   Board,
+  LoginEvent,
   Meeting,
   MeetingContextPackage,
   MeetingContextPayload,
+  MeetingDeployment,
   MeetingType,
+  OrgRole,
+  OrgSettings,
   Project,
   Task,
+  Team,
   User,
+  UserStatus,
   VoiceParseResult,
 } from '../types';
 
@@ -56,6 +66,13 @@ export const projectsApi = {
    * need a list-shaped project should refetch rather than use this directly.
    */
   create: (input: { name: string }) => api.post<Project>('/api/projects', input),
+
+  /** PATCH /api/projects/:projectId -> rename and/or archive/restore. */
+  update: (projectId: number, input: Partial<{ name: string; archived: boolean }>) =>
+    api.patch<Project>(`/api/projects/${projectId}`, input),
+
+  /** DELETE /api/projects/:projectId -> 204. Real delete — cascades to its tasks. */
+  remove: (projectId: number) => api.delete(`/api/projects/${projectId}`),
 };
 
 // ---------- Tasks (authenticated) ----------
@@ -157,8 +174,8 @@ export interface MeetingInput {
   type?: MeetingType;
   /** ISO datetime string. */
   scheduledAt: string;
-  /** Optional join link (Zoom/Meet/Teams/etc). Sent to null to clear it. */
-  meetingUrl?: string | null;
+  /** Required join link (Zoom/Meet/Teams/etc), included in the invite email. */
+  meetingUrl: string;
   projectIds: number[];
   participantUserIds: number[];
 }
@@ -182,8 +199,19 @@ export const meetingsApi = {
   update: (meetingId: number, input: Partial<MeetingInput>) =>
     api.patch<Meeting>(`/api/meetings/${meetingId}`, input),
 
+  /** DELETE /api/meetings/:meetingId -> 204. Real delete — cascades to participants/context/deployment. */
+  remove: (meetingId: number) => api.delete(`/api/meetings/${meetingId}`),
+
   /** POST /api/meetings/:meetingId/cancel -> sets status to 'cancelled', emails participants. */
   cancel: (meetingId: number) => api.post<Meeting>(`/api/meetings/${meetingId}/cancel`, undefined),
+
+  /**
+   * POST /api/meetings/:meetingId/resend-invitations -> re-sends the invite
+   * email to every current participant, logging a fresh attempt per
+   * recipient. Returns the meeting with refreshed per-participant email status.
+   */
+  resendInvitations: (meetingId: number) =>
+    api.post<Meeting>(`/api/meetings/${meetingId}/resend-invitations`, undefined),
 
   /**
    * POST /api/meetings/:meetingId/context -> (re)builds the context package from
@@ -205,6 +233,86 @@ export const meetingsApi = {
    */
   previewContext: (input: { projectIds: number[]; participantUserIds: number[] }) =>
     api.post<MeetingContextPayload>('/api/meetings/preview-context', input),
+
+  /**
+   * POST /api/meetings/:meetingId/deploy -> marks the meeting deployed, freezes a
+   * context snapshot. This is the API contract only — no external bot is called yet.
+   */
+  deploy: (meetingId: number) => api.post<MeetingDeployment>(`/api/meetings/${meetingId}/deploy`, undefined),
+
+  /** GET /api/meetings/:meetingId/deploy -> current deployment status + frozen snapshot, if any. */
+  getDeployment: (meetingId: number, signal?: AbortSignal) =>
+    api.get<MeetingDeployment>(`/api/meetings/${meetingId}/deploy`, signal),
+};
+
+// ---------- Teams (authenticated, member+ read / admin+ manage) ----------
+
+export const teamsApi = {
+  /** GET /api/teams -> every team in the caller's org, with member rosters. */
+  list: (signal?: AbortSignal) => api.get<Team[]>('/api/teams', signal),
+
+  /** POST /api/teams -> 201. */
+  create: (input: { name: string }) => api.post<Team>('/api/teams', input),
+
+  /** PATCH /api/teams/:teamId -> rename. */
+  rename: (teamId: number, name: string) => api.patch<{ id: number }>(`/api/teams/${teamId}`, { name }),
+
+  /** DELETE /api/teams/:teamId -> 204. */
+  remove: (teamId: number) => api.delete(`/api/teams/${teamId}`),
+
+  /** POST /api/teams/:teamId/members -> 201. */
+  addMember: (teamId: number, userId: number) =>
+    api.post<{ teamId: number; userId: number }>(`/api/teams/${teamId}/members`, { userId }),
+
+  /** DELETE /api/teams/:teamId/members/:userId -> 204. */
+  removeMember: (teamId: number, userId: number) => api.delete(`/api/teams/${teamId}/members/${userId}`),
+};
+
+// ---------- Admin (authenticated, admin+ only — enforced server-side) ----------
+
+export const adminApi = {
+  /** GET /api/admin/dashboard */
+  getDashboard: (signal?: AbortSignal) => api.get<AdminDashboard>('/api/admin/dashboard', signal),
+
+  /** GET /api/admin/analytics */
+  getAnalytics: (signal?: AbortSignal) => api.get<AdminAnalytics>('/api/admin/analytics', signal),
+
+  /** GET /api/admin/users */
+  listUsers: (signal?: AbortSignal) => api.get<AdminUser[]>('/api/admin/users', signal),
+
+  /** PATCH /api/admin/users/:userId/role */
+  changeUserRole: (userId: number, role: OrgRole) =>
+    api.patch<{ userId: number; role: OrgRole }>(`/api/admin/users/${userId}/role`, { role }),
+
+  /** PATCH /api/admin/users/:userId/status */
+  setUserStatus: (userId: number, status: UserStatus) =>
+    api.patch<{ userId: number; status: UserStatus }>(`/api/admin/users/${userId}/status`, { status }),
+
+  /** POST /api/admin/users/:userId/force-logout -> instantly invalidates every token that user currently holds. */
+  forceLogout: (userId: number) => api.post<{ userId: number }>(`/api/admin/users/${userId}/force-logout`, undefined),
+
+  /** DELETE /api/admin/users/:userId -> 204. Removes org membership, not the user's account. */
+  removeUser: (userId: number) => api.delete(`/api/admin/users/${userId}`),
+
+  /** GET /api/admin/audit-log -> most recent 200 entries. */
+  getAuditLog: (signal?: AbortSignal) => api.get<AuditLogEntry[]>('/api/admin/audit-log', signal),
+
+  /** GET /api/admin/login-history -> most recent 200 entries. */
+  getLoginHistory: (signal?: AbortSignal) => api.get<LoginEvent[]>('/api/admin/login-history', signal),
+
+  /** GET /api/admin/settings */
+  getSettings: (signal?: AbortSignal) => api.get<OrgSettings>('/api/admin/settings', signal),
+
+  /** PATCH /api/admin/settings — Owner/Admin only. */
+  updateSettings: (input: Partial<{ name: string; settings: Record<string, unknown> }>) =>
+    api.patch<OrgSettings>('/api/admin/settings', input),
+
+  /** PATCH /api/admin/tasks/bulk-status */
+  bulkUpdateTaskStatus: (taskIds: number[], status: string) =>
+    api.patch<{ updated: number[] }>('/api/admin/tasks/bulk-status', { taskIds, status }),
+
+  /** POST /api/admin/tasks/bulk-delete */
+  bulkDeleteTasks: (taskIds: number[]) => api.post<{ deleted: number[] }>('/api/admin/tasks/bulk-delete', { taskIds }),
 };
 
 /*

@@ -62,7 +62,7 @@ async function parseVoiceCommand({ transcript, audioBuffer, audioMimeType }, cli
  * tasksService.createTask() the manual "Add task" form uses. Voice is just
  * a second way to fill in that one form — not a parallel code path.
  */
-async function createTaskFromVoice({ projectId, transcript, audioBuffer, audioMimeType }, client = defaultClient) {
+async function createTaskFromVoice({ projectId, transcript, audioBuffer, audioMimeType, createdBy }, client = defaultClient) {
   const parsed = await parseVoiceCommand({ transcript, audioBuffer, audioMimeType }, client);
 
   const task = await tasksService.createTask({
@@ -70,6 +70,7 @@ async function createTaskFromVoice({ projectId, transcript, audioBuffer, audioMi
     title: parsed.title,
     assigneeId: parsed.assignee ? parsed.assignee.id : null,
     dueDate: parsed.dueDate,
+    createdBy,
   });
 
   return {

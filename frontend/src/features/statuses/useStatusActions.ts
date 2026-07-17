@@ -83,6 +83,12 @@ export function useStatusActions(listId: string) {
     [dispatch, setId]
   );
 
+  const setWipLimit = useCallback(
+    (statusId: string, wipLimit: number | null) =>
+      dispatch(updateStatus({ setId, statusId, changes: { wipLimit } })),
+    [dispatch, setId]
+  );
+
   const reorder = useCallback(
     (statusId: string, toIndex: number) => dispatch(reorderStatus({ setId, statusId, toIndex })),
     [dispatch, setId]
@@ -125,5 +131,5 @@ export function useStatusActions(listId: string) {
     [dispatch, setId, set, migrateTasks]
   );
 
-  return { set, setId, addNew, recolor, regroup, reorder, rename, setArchived, remove };
+  return { set, setId, addNew, recolor, regroup, reorder, rename, setArchived, setWipLimit, remove };
 }

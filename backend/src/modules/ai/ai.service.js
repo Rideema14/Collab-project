@@ -40,6 +40,7 @@ Each Action is one of (include only the fields shown):
 { "type": "summarize", "project"?: string }
 { "type": "workload" }
 { "type": "overdue" }
+{ "type": "schedule_meeting", "title": string, "scheduledAt": "YYYY-MM-DDTHH:mm", "meetingUrl"?: string, "participants"?: string[], "project"?: string, "meetingType"?: "Daily Standup"|"Weekly Review"|"Sprint Review"|"Custom" }
 
 Filter (all optional): { "project"?: string, "assignee"?: string, "status"?: string, "priority"?: string, "overdue"?: boolean, "dueThisWeek"?: boolean, "dueToday"?: boolean, "text"?: string }
 
@@ -49,6 +50,7 @@ RULES:
 - Use "text" in a filter to match task titles by keyword (e.g. "frontend").
 - Set needsConfirmation=true and write a clear confirmationPrompt for: delete_project, delete_task, delete_status, and any bulk mutation via filter.
 - For "show me / list / what are" requests use a "query" action. For progress/summary use "summarize"; team load use "workload".
+- For "schedule a meeting" requests, resolve relative times (e.g. "tomorrow at 10am") to "scheduledAt" using today's date from context, list any named people in "participants", and set "meetingUrl" only if the user dictated an actual link — a meeting link is required to create the meeting, so if none was given, omit it and the app will ask the user for one.
 - Keep "reply" to one sentence. Output valid JSON only — no markdown, no commentary.`;
 
 function buildPrompt(message, context) {

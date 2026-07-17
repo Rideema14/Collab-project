@@ -27,6 +27,7 @@ export type AuthUser = User;
 export interface Project {
   id: number;
   name: string;
+  archived: boolean;
   createdAt: string;
   /**
    * NOTE: `GET /api/projects` returns `{ id, name }` here, but the 201 body of
@@ -50,6 +51,8 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   assignee: User | null;
+  /** Null for tasks created before this field existed. */
+  createdBy: User | null;
 }
 
 /** GET /api/projects/:projectId/tasks — tasks arrive pre-grouped into columns. */
@@ -102,6 +105,11 @@ export interface AiAction {
   color?: string;
   group?: string;
   filter?: AiFilter;
+  /** schedule_meeting only. */
+  scheduledAt?: string;
+  participants?: string[];
+  meetingType?: string;
+  meetingUrl?: string;
 }
 
 /** The plan returned by POST /api/ai/command. */
@@ -120,12 +128,23 @@ export type MeetingType = (typeof MEETING_TYPES)[number];
 
 export type MeetingStatus = 'scheduled' | 'context_ready' | 'cancelled';
 
+/**
+ * `sent` (provider accepted the request) is the highest state this app can
+ * honestly claim — EmailJS has no delivery webhook, so `delivered` exists in
+ * the type for a future webhook-capable provider but is never set today.
+ */
+export type EmailDeliveryStatus = 'pending' | 'sending' | 'sent' | 'delivered' | 'failed';
+
 export interface MeetingParticipant {
   id: number;
   name: string;
   email: string;
   inviteStatus: string;
   invitedAt: string | null;
+  emailStatus: EmailDeliveryStatus;
+  emailError: string | null;
+  emailSentAt: string | null;
+  emailDeliveredAt: string | null;
 }
 
 export interface Meeting {
@@ -137,6 +156,8 @@ export interface Meeting {
   /** Admin-entered join link (Zoom/Meet/Teams/etc), or null. Included in invite emails. */
   meetingUrl: string | null;
   status: MeetingStatus;
+  /** Set once "Deploy Bot" has been clicked; null until then. */
+  deployedAt: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: { id: number; name: string; email: string };
@@ -197,10 +218,14 @@ export interface MeetingBotContext {
   assignedTasks: MeetingBotTask[];
   completedTasks: MeetingBotTask[];
   activeTasks: MeetingBotTask[];
+  /** Heuristic: status literally named "Blocked" — no real dependency graph behind it yet. */
+  blockedTasks: MeetingBotTask[];
   overdueTasks: MeetingBotTask[];
   deadlines: MeetingBotTask[];
   /** Explicit list of what this package does NOT contain and why — always render this. */
   limitations: string[];
+  /** Plain-text, paragraph-based prompt built from the same data above — meant to be fed directly to an LLM by the external Meeting Bot. No AI call produced this; it's deterministic formatting. */
+  narrative: string;
 }
 
 /** GET/POST /api/meetings/:meetingId/context */
@@ -208,4 +233,80 @@ export interface MeetingContextPackage {
   meetingId: number;
   generatedAt: string;
   payload: MeetingBotContext;
+}
+
+/** POST /api/meetings/:meetingId/deploy, GET /api/meetings/:meetingId/deploy */
+export interface MeetingDeployment {
+  deployed: boolean;
+  deployedAt: string | null;
+  context: MeetingBotContext | null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin (/api/admin, /api/teams) — server-backed, real org/role model.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const ORG_ROLES = ['owner', 'admin', 'manager', 'member', 'guest', 'bot'] as const;
+export type OrgRole = (typeof ORG_ROLES)[number];
+
+export type UserStatus = 'active' | 'suspended';
+
+/** GET /api/admin/users — one row per org member. */
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  status: UserStatus;
+  role: OrgRole;
+}
+
+/** GET /api/teams */
+export interface Team {
+  id: number;
+  name: string;
+  createdAt: string;
+  members: User[];
+}
+
+/** GET /api/admin/audit-log, and the dashboard's recentAudit slice. */
+export interface AuditLogEntry {
+  id: number;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  actor: { id: number; name: string } | null;
+  at: string;
+}
+
+/** GET /api/admin/login-history */
+export interface LoginEvent {
+  id: number;
+  ip: string | null;
+  userAgent: string | null;
+  at: string;
+  user: { id: number; name: string };
+}
+
+/** GET /api/admin/dashboard */
+export interface AdminDashboard {
+  counts: { members: number; projects: number; tasks: number };
+  taskStats: { completed: number; overdue: number; total: number };
+  roleBreakdown: { role: OrgRole; count: number }[];
+  recentAudit: AuditLogEntry[];
+}
+
+/** GET /api/admin/analytics */
+export interface AdminAnalytics {
+  completed: number;
+  overdue: number;
+  total: number;
+  completionRate: number;
+  statusBreakdown: { status: string; count: number }[];
+}
+
+/** GET/PATCH /api/admin/settings */
+export interface OrgSettings {
+  id: number;
+  name: string;
+  settings: Record<string, unknown>;
 }

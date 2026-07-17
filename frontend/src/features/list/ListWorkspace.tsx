@@ -1,26 +1,44 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  Bookmark,
   CalendarDays,
   Filter,
   KanbanSquare,
   LayoutList,
+  Plus,
   Search,
   Table2,
+  Trash2,
   Users,
   Waypoints,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setActiveListId } from '@/store/slices/uiSlice';
-import { setViewPrefs, DEFAULT_PREFS, type ViewKind } from '@/store/slices/tasksSlice';
-import { selectListById, selectPrefsByList, selectSpaceById, selectTags } from '@/store/selectors';
+import {
+  setViewPrefs,
+  saveView,
+  deleteView,
+  DEFAULT_PREFS,
+  type ViewKind,
+  type DueFilter,
+  type ListViewPrefs,
+} from '@/store/slices/tasksSlice';
+import {
+  selectListById,
+  selectPrefsByList,
+  selectSpaceById,
+  selectStatusSetForList,
+  selectTags,
+  selectSprintsForList,
+  selectSavedViewsForList,
+} from '@/store/selectors';
 import { useGetUsersQuery } from '@/store/api/backendApi';
 import dynamic from 'next/dynamic';
 import { softAccent } from '@/lib/domain/status-color';
 import { cn } from '@/lib/design/cn';
 import { Input } from '@/components/ui/Input';
-import { IconButton } from '@/components/ui/Misc';
 import { EmptyState } from '@/components/ui/States';
 import { Spinner } from '@/components/ui/Spinner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
@@ -29,6 +47,13 @@ import { PRIORITY_META } from '@/lib/domain/defaults';
 import type { Priority } from '@/lib/domain/types';
 
 const FILTER_PRIORITIES: Priority[] = ['urgent', 'high', 'normal', 'low', 'none'];
+const DUE_FILTER_OPTIONS: [DueFilter, string][] = [
+  ['any', 'Any time'],
+  ['overdue', 'Overdue'],
+  ['today', 'Due today'],
+  ['week', 'Due this week'],
+  ['none', 'No due date'],
+];
 // Board is the default view — keep it eager so the first paint is instant. The
 // other views, the task drawer, and the voice modal are code-split and load on
 // demand, so opening a list ships far less JS up front.
@@ -170,22 +195,11 @@ export function ListWorkspace({ listId }: { listId: string }) {
           Show done
         </label>
 
-        <FiltersButton
-          filterAssigneeIds={prefs.filterAssigneeIds}
-          filterTagIds={prefs.filterTagIds}
-          filterPriorities={prefs.filterPriorities}
-          filterOverdueOnly={prefs.filterOverdueOnly}
-          onChange={(changes) => set(changes)}
-        />
+        <FiltersButton listId={listId} prefs={prefs} onChange={(changes) => set(changes)} />
+
+        <SavedViewsButton listId={listId} prefs={prefs} onApply={(p) => set(p)} />
 
         <div className="ml-auto flex items-center gap-1">
-          <IconButton
-            aria-label="Toggle density"
-            active={prefs.density === 'compact'}
-            onClick={() => set({ density: prefs.density === 'compact' ? 'comfortable' : 'compact' })}
-          >
-            <LayoutList className="h-4 w-4" />
-          </IconButton>
           <StatusManagerButton listId={listId} />
         </div>
       </div>
@@ -223,28 +237,32 @@ function ViewSwitch({ view, listId }: { view: ViewKind; listId: string }) {
   }
 }
 
+type FilterChanges = Parameters<typeof setViewPrefs>[0]['changes'];
+
 function FiltersButton({
-  filterAssigneeIds,
-  filterTagIds,
-  filterPriorities,
-  filterOverdueOnly,
+  listId,
+  prefs,
   onChange,
 }: {
-  filterAssigneeIds: number[];
-  filterTagIds: string[];
-  filterPriorities: Priority[];
-  filterOverdueOnly: boolean;
-  onChange: (changes: {
-    filterAssigneeIds?: number[];
-    filterTagIds?: string[];
-    filterPriorities?: Priority[];
-    filterOverdueOnly?: boolean;
-  }) => void;
+  listId: string;
+  prefs: ListViewPrefs;
+  onChange: (changes: FilterChanges) => void;
 }) {
   const { data: users = [] } = useGetUsersQuery();
   const tags = useAppSelector(selectTags);
+  const statusSet = useAppSelector(selectStatusSetForList(listId));
+  const sprints = useAppSelector(selectSprintsForList(listId));
+  const { filterAssigneeIds, filterTagIds, filterPriorities, filterStatusIds, filterSprintId, filterCreatedBy, filterDue } = prefs;
+  const statuses = (statusSet?.statuses ?? []).filter((s) => !s.archived).sort((a, b) => a.order - b.order);
+
   const activeCount =
-    filterAssigneeIds.length + filterTagIds.length + filterPriorities.length + (filterOverdueOnly ? 1 : 0);
+    filterAssigneeIds.length +
+    filterTagIds.length +
+    filterPriorities.length +
+    filterStatusIds.length +
+    (filterSprintId ? 1 : 0) +
+    (filterCreatedBy ? 1 : 0) +
+    (filterDue !== 'any' ? 1 : 0);
 
   function toggleAssignee(id: number) {
     onChange({
@@ -265,6 +283,14 @@ function FiltersButton({
       filterPriorities: filterPriorities.includes(p)
         ? filterPriorities.filter((x) => x !== p)
         : [...filterPriorities, p],
+    });
+  }
+
+  function toggleStatus(id: string) {
+    onChange({
+      filterStatusIds: filterStatusIds.includes(id)
+        ? filterStatusIds.filter((s) => s !== id)
+        : [...filterStatusIds, id],
     });
   }
 
@@ -296,7 +322,15 @@ function FiltersButton({
             <button
               type="button"
               onClick={() =>
-                onChange({ filterAssigneeIds: [], filterTagIds: [], filterPriorities: [], filterOverdueOnly: false })
+                onChange({
+                  filterAssigneeIds: [],
+                  filterTagIds: [],
+                  filterPriorities: [],
+                  filterStatusIds: [],
+                  filterSprintId: null,
+                  filterCreatedBy: null,
+                  filterDue: 'any',
+                })
               }
               className="text-xs text-text-subtle hover:text-text hover:underline"
             >
@@ -305,14 +339,46 @@ function FiltersButton({
           )}
         </div>
 
-        <label className="mb-3 flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-text hover:bg-surface-muted">
-          <input
-            type="checkbox"
-            checked={filterOverdueOnly}
-            onChange={(e) => onChange({ filterOverdueOnly: e.target.checked })}
-          />
-          Overdue only
-        </label>
+        <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-subtle">Due date</p>
+        <select
+          value={filterDue}
+          onChange={(e) => onChange({ filterDue: e.target.value as DueFilter })}
+          className="mb-3 h-8 w-full rounded-md border border-border bg-surface px-2 text-xs text-text"
+        >
+          {DUE_FILTER_OPTIONS.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+
+        {sprints.length > 0 && (
+          <>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-subtle">Sprint</p>
+            <select
+              value={filterSprintId ?? ''}
+              onChange={(e) => onChange({ filterSprintId: e.target.value || null })}
+              className="mb-3 h-8 w-full rounded-md border border-border bg-surface px-2 text-xs text-text"
+            >
+              <option value="">Any sprint</option>
+              {sprints.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-subtle">Status</p>
+        <div className="mb-3 max-h-32 space-y-1 overflow-y-auto">
+          {statuses.map((s) => (
+            <label key={s.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-text hover:bg-surface-muted">
+              <input type="checkbox" checked={filterStatusIds.includes(s.id)} onChange={() => toggleStatus(s.id)} />
+              {s.name}
+            </label>
+          ))}
+        </div>
 
         <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-subtle">Priority</p>
         <div className="mb-3 space-y-1">
@@ -339,9 +405,23 @@ function FiltersButton({
           ))}
         </div>
 
-        <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-subtle">Tags</p>
+        <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-subtle">Created by</p>
+        <select
+          value={filterCreatedBy ?? ''}
+          onChange={(e) => onChange({ filterCreatedBy: e.target.value ? Number(e.target.value) : null })}
+          className="mb-3 h-8 w-full rounded-md border border-border bg-surface px-2 text-xs text-text"
+        >
+          <option value="">Anyone</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
+
+        <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-subtle">Labels</p>
         <div className="max-h-40 space-y-1 overflow-y-auto">
-          {tags.length === 0 && <p className="text-xs text-text-subtle">No tags yet.</p>}
+          {tags.length === 0 && <p className="text-xs text-text-subtle">No labels yet.</p>}
           {tags.map((t) => (
             <label key={t.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-surface-muted">
               <input type="checkbox" checked={filterTagIds.includes(t.id)} onChange={() => toggleTag(t.id)} />
@@ -349,6 +429,98 @@ function FiltersButton({
             </label>
           ))}
         </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Save/apply/delete named view snapshots for this list — search/filters/group/sort/view. */
+function SavedViewsButton({
+  listId,
+  prefs,
+  onApply,
+}: {
+  listId: string;
+  prefs: ListViewPrefs;
+  onApply: (prefs: Parameters<typeof setViewPrefs>[0]['changes']) => void;
+}) {
+  const dispatch = useAppDispatch();
+  const views = useAppSelector(selectSavedViewsForList(listId));
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+
+  function save() {
+    if (!name.trim()) return;
+    dispatch(saveView({ listId, name, prefs }));
+    setName('');
+    setNaming(false);
+  }
+
+  return (
+    <Popover onOpenChange={(open) => !open && setNaming(false)}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-text-muted transition-colors hover:text-text"
+        >
+          <Bookmark className="h-3.5 w-3.5" />
+          Views
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64">
+        <p className="mb-2 text-xs font-semibold text-text">Saved views</p>
+        <div className="mb-2 max-h-48 space-y-1 overflow-y-auto">
+          {views.length === 0 && <p className="text-xs text-text-subtle">No saved views yet.</p>}
+          {views.map((v) => (
+            <div key={v.id} className="flex items-center gap-1 rounded hover:bg-surface-muted">
+              <button
+                type="button"
+                onClick={() => onApply(v.prefs)}
+                className="flex-1 truncate rounded px-1.5 py-1 text-left text-sm text-text"
+              >
+                {v.name}
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete view ${v.name}`}
+                onClick={() => dispatch(deleteView({ id: v.id }))}
+                className="grid h-6 w-6 shrink-0 place-items-center rounded text-text-subtle hover:bg-danger-soft hover:text-danger"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {naming ? (
+          <form
+            className="flex gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+          >
+            {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="View name…"
+              className="h-8 flex-1 rounded-md border border-border bg-surface px-2 text-xs text-text outline-none focus:border-primary"
+            />
+            <button type="submit" disabled={!name.trim()} className="rounded-md bg-primary px-2 text-xs font-medium text-primary-fg disabled:opacity-50">
+              Save
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setNaming(true)}
+            className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-border-strong px-2 py-1.5 text-xs text-text-muted hover:bg-surface-muted hover:text-text"
+          >
+            <Plus className="h-3.5 w-3.5" /> Save current view
+          </button>
+        )}
       </PopoverContent>
     </Popover>
   );

@@ -7,9 +7,14 @@ const repository = require('./auth.repository');
 const SALT_ROUNDS = 10;
 
 function signToken(user) {
-  return jwt.sign({ sub: user.id, name: user.name, email: user.email }, env.jwtSecret, {
-    expiresIn: env.jwtExpiresIn,
-  });
+  // tokenVersion is embedded so requireAuth can instantly invalidate every token
+  // issued before an admin's force-logout bumps users.token_version — the
+  // workaround for enforcing revocation on an otherwise-stateless JWT.
+  return jwt.sign(
+    { sub: user.id, name: user.name, email: user.email, tokenVersion: user.token_version ?? 0 },
+    env.jwtSecret,
+    { expiresIn: env.jwtExpiresIn }
+  );
 }
 
 function shapeUser(user) {
@@ -37,11 +42,18 @@ async function register({ name, email, password }) {
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   const user = await repository.createUser({ name: name.trim(), email: normalizedEmail, passwordHash });
+
+  // Auto-join the (single, today) default org as Member — see repository doc comment.
+  const organizationId = await repository.findDefaultOrganizationId();
+  if (organizationId) {
+    await repository.addMembership(user.id, organizationId, 'member');
+  }
+
   const token = signToken(user);
   return { user: shapeUser(user), token };
 }
 
-async function login({ email, password }) {
+async function login({ email, password }, requestMeta = {}) {
   if (!email || !password) {
     throw new ApiError(400, 'email and password are required');
   }
@@ -55,6 +67,11 @@ async function login({ email, password }) {
   if (!valid) {
     throw new ApiError(401, 'Invalid email or password');
   }
+  if (user.status === 'suspended') {
+    throw new ApiError(403, 'This account has been suspended');
+  }
+
+  await repository.recordLogin(user.id, requestMeta).catch((err) => console.error('[auth] failed to record login event:', err));
 
   const token = signToken(user);
   return { user: shapeUser(user), token };

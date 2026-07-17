@@ -7,8 +7,12 @@ import type {
   DependencyType,
   Priority,
   Subtask,
+  SubtaskStatus,
   TaskRich,
 } from '@/lib/domain/types';
+
+/** Quick due-date buckets for filtering — simpler and more useful than a raw date-range picker. */
+export type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none';
 
 /**
  * Client-only rich task data + per-list view preferences.
@@ -29,16 +33,28 @@ export interface ListViewPrefs {
   filterAssigneeIds: number[];
   filterTagIds: string[];
   filterPriorities: Priority[];
-  filterOverdueOnly: boolean;
+  filterStatusIds: string[];
+  filterSprintId: string | null;
+  filterCreatedBy: number | null;
+  filterDue: DueFilter;
   showDone: boolean;
+}
+
+/** A named, savable snapshot of a list's view preferences (search/filters/group/sort/view). */
+export interface SavedView {
+  id: string;
+  listId: string;
+  name: string;
+  prefs: ListViewPrefs;
 }
 
 export interface TasksState {
   richById: Record<number, TaskRich>;
   prefsByList: Record<string, ListViewPrefs>;
+  savedViews: SavedView[];
 }
 
-const initialState: TasksState = { richById: {}, prefsByList: {} };
+const initialState: TasksState = { richById: {}, prefsByList: {}, savedViews: [] };
 
 export const DEFAULT_PREFS: ListViewPrefs = {
   view: 'board',
@@ -49,7 +65,10 @@ export const DEFAULT_PREFS: ListViewPrefs = {
   filterAssigneeIds: [],
   filterTagIds: [],
   filterPriorities: [],
-  filterOverdueOnly: false,
+  filterStatusIds: [],
+  filterSprintId: null,
+  filterCreatedBy: null,
+  filterDue: 'any',
   showDone: true,
 };
 
@@ -69,6 +88,7 @@ export function defaultRich(taskId: number, statusId: string | null): TaskRich {
     attachments: [],
     order: 0,
     coverHue: null,
+    sprintId: null,
   };
 }
 
@@ -115,14 +135,45 @@ const tasksSlice = createSlice({
         return {
           payload: {
             taskId: input.taskId,
-            subtask: { id: `sub-${nanoid(6)}`, title: input.title.trim(), done: false, assigneeId: null },
+            subtask: {
+              id: `sub-${nanoid(6)}`,
+              title: input.title.trim(),
+              done: false,
+              status: 'todo' as SubtaskStatus,
+              assigneeId: null,
+              priority: 'none' as Priority,
+              dueDate: null,
+            },
           },
         };
       },
     },
+    /** Quick checkbox toggle — flips between done and todo (use setSubtaskStatus for the full 3-state control). */
     toggleSubtask(state, action: PayloadAction<{ taskId: number; subtaskId: string }>) {
       const st = state.richById[action.payload.taskId]?.subtasks.find((s) => s.id === action.payload.subtaskId);
-      if (st) st.done = !st.done;
+      if (st) {
+        st.done = !st.done;
+        st.status = st.done ? 'done' : 'todo';
+      }
+    },
+    setSubtaskStatus(state, action: PayloadAction<{ taskId: number; subtaskId: string; status: SubtaskStatus }>) {
+      const st = state.richById[action.payload.taskId]?.subtasks.find((s) => s.id === action.payload.subtaskId);
+      if (st) {
+        st.status = action.payload.status;
+        st.done = action.payload.status === 'done';
+      }
+    },
+    setSubtaskPriority(state, action: PayloadAction<{ taskId: number; subtaskId: string; priority: Priority }>) {
+      const st = state.richById[action.payload.taskId]?.subtasks.find((s) => s.id === action.payload.subtaskId);
+      if (st) st.priority = action.payload.priority;
+    },
+    setSubtaskDueDate(state, action: PayloadAction<{ taskId: number; subtaskId: string; dueDate: string | null }>) {
+      const st = state.richById[action.payload.taskId]?.subtasks.find((s) => s.id === action.payload.subtaskId);
+      if (st) st.dueDate = action.payload.dueDate;
+    },
+    setSubtaskAssignee(state, action: PayloadAction<{ taskId: number; subtaskId: string; assigneeId: number | null }>) {
+      const st = state.richById[action.payload.taskId]?.subtasks.find((s) => s.id === action.payload.subtaskId);
+      if (st) st.assigneeId = action.payload.assigneeId;
     },
     removeSubtask(state, action: PayloadAction<{ taskId: number; subtaskId: string }>) {
       const r = state.richById[action.payload.taskId];
@@ -234,10 +285,34 @@ const tasksSlice = createSlice({
         ? r.watcherIds.filter((id) => id !== action.payload.userId)
         : [...r.watcherIds, action.payload.userId];
     },
+    // ---- sprint ----
+    setSprint(state, action: PayloadAction<{ taskId: number; sprintId: string | null }>) {
+      const r = (state.richById[action.payload.taskId] ??= defaultRich(action.payload.taskId, null));
+      r.sprintId = action.payload.sprintId;
+    },
     // ---- view prefs ----
     setViewPrefs(state, action: PayloadAction<{ listId: string; changes: Partial<ListViewPrefs> }>) {
       const cur = state.prefsByList[action.payload.listId];
       state.prefsByList[action.payload.listId] = { ...DEFAULT_PREFS, ...cur, ...action.payload.changes };
+    },
+    // ---- saved views ----
+    saveView: {
+      reducer(state, action: PayloadAction<SavedView>) {
+        state.savedViews.push(action.payload);
+      },
+      prepare(input: { listId: string; name: string; prefs: ListViewPrefs }) {
+        return {
+          payload: {
+            id: `view-${nanoid(6)}`,
+            listId: input.listId,
+            name: input.name.trim() || 'Untitled view',
+            prefs: input.prefs,
+          },
+        };
+      },
+    },
+    deleteView(state, action: PayloadAction<{ id: string }>) {
+      state.savedViews = state.savedViews.filter((v) => v.id !== action.payload.id);
     },
   },
 });
@@ -251,6 +326,10 @@ export const {
   setEstimate,
   addSubtask,
   toggleSubtask,
+  setSubtaskStatus,
+  setSubtaskPriority,
+  setSubtaskDueDate,
+  setSubtaskAssignee,
   removeSubtask,
   addChecklist,
   addChecklistItem,
@@ -263,7 +342,10 @@ export const {
   logTime,
   setTimeSpent,
   toggleWatcher,
+  setSprint,
   setViewPrefs,
+  saveView,
+  deleteView,
 } = tasksSlice.actions;
 
 export default tasksSlice.reducer;

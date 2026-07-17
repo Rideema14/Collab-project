@@ -1,4 +1,5 @@
 const { ApiError } = require('../../utils/ApiError');
+const { logAudit } = require('../../utils/auditLog');
 const repository = require('./tasks.repository');
 const projectsService = require('../projects/projects.service');
 
@@ -15,6 +16,7 @@ function shapeTask(row) {
     assignee: row.assignee_id
       ? { id: row.assignee_id, name: row.assignee_name, email: row.assignee_email }
       : null,
+    createdBy: row.creator_id ? { id: row.creator_id, name: row.creator_name, email: row.creator_email } : null,
   };
 }
 
@@ -38,7 +40,7 @@ function validateStatus(status) {
   return trimmed;
 }
 
-async function createTask({ projectId, title, status, assigneeId, dueDate }) {
+async function createTask({ projectId, title, status, assigneeId, dueDate, createdBy, organizationId }) {
   await projectsService.getProjectOrThrow(projectId);
 
   if (!title || !title.trim()) {
@@ -52,7 +54,11 @@ async function createTask({ projectId, title, status, assigneeId, dueDate }) {
     status: status === undefined || status === null || status === '' ? null : validateStatus(status),
     assigneeId: blankToNull(assigneeId),
     dueDate: blankToNull(dueDate),
+    createdBy: createdBy ?? null,
   });
+  logAudit({ organizationId, actorId: createdBy, action: 'task.create', targetType: 'task', targetId: row.id }).catch((err) =>
+    console.error('[audit] failed to log task.create:', err)
+  );
   return shapeTask(row);
 }
 
@@ -105,9 +111,12 @@ async function updateTask(taskId, fields) {
   return shapeTask(row);
 }
 
-async function deleteTask(taskId) {
+async function deleteTask(taskId, { actorId, organizationId } = {}) {
   const deleted = await repository.remove(taskId);
   if (!deleted) throw new ApiError(404, 'Task not found');
+  logAudit({ organizationId, actorId, action: 'task.delete', targetType: 'task', targetId: taskId }).catch((err) =>
+    console.error('[audit] failed to log task.delete:', err)
+  );
 }
 
 /**

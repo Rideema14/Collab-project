@@ -1,15 +1,35 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn } from '@reduxjs/toolkit/query';
 import { ApiError } from '@/lib/api/client';
-import { aiApi, meetingsApi, projectsApi, tasksApi, usersApi, voiceApi, type MeetingInput } from '@/lib/api/endpoints';
+import {
+  adminApi,
+  aiApi,
+  meetingsApi,
+  projectsApi,
+  tasksApi,
+  teamsApi,
+  usersApi,
+  voiceApi,
+  type MeetingInput,
+} from '@/lib/api/endpoints';
 import type {
+  AdminAnalytics,
+  AdminDashboard,
+  AdminUser,
   AiPlan,
+  AuditLogEntry,
+  LoginEvent,
   Meeting,
   MeetingContextPackage,
   MeetingContextPayload,
+  MeetingDeployment,
+  OrgRole,
+  OrgSettings,
   Project,
   Task,
+  Team,
   User,
+  UserStatus,
   VoiceParseResult,
 } from '@/lib/types';
 
@@ -49,7 +69,20 @@ const passthroughBaseQuery: BaseQueryFn<Thunk<unknown>, unknown, { status: numbe
 export const backendApi = createApi({
   reducerPath: 'backendApi',
   baseQuery: passthroughBaseQuery,
-  tagTypes: ['Projects', 'Board', 'Users', 'Meetings', 'MeetingContext'],
+  tagTypes: [
+    'Projects',
+    'Board',
+    'Users',
+    'Meetings',
+    'MeetingContext',
+    'Teams',
+    'AdminUsers',
+    'AdminDashboard',
+    'AdminAnalytics',
+    'AuditLog',
+    'LoginHistory',
+    'OrgSettings',
+  ],
   endpoints: (build) => ({
     // ---- Users ----
     getUsers: build.query<User[], void>({
@@ -64,6 +97,14 @@ export const backendApi = createApi({
     }),
     createProject: build.mutation<Project, { name: string }>({
       query: (input) => () => projectsApi.create(input),
+      invalidatesTags: ['Projects'],
+    }),
+    updateProject: build.mutation<Project, { projectId: number; input: Partial<{ name: string; archived: boolean }> }>({
+      query: ({ projectId, input }) => () => projectsApi.update(projectId, input),
+      invalidatesTags: ['Projects'],
+    }),
+    deleteProject: build.mutation<void, number>({
+      query: (projectId) => () => projectsApi.remove(projectId),
       invalidatesTags: ['Projects'],
     }),
 
@@ -173,8 +214,22 @@ export const backendApi = createApi({
         { type: 'Meetings', id: 'LIST' },
       ],
     }),
+    deleteMeeting: build.mutation<void, number>({
+      query: (meetingId) => () => meetingsApi.remove(meetingId),
+      invalidatesTags: (_r, _e, meetingId) => [
+        { type: 'Meetings', id: meetingId },
+        { type: 'Meetings', id: 'LIST' },
+      ],
+    }),
     cancelMeeting: build.mutation<Meeting, number>({
       query: (meetingId) => () => meetingsApi.cancel(meetingId),
+      invalidatesTags: (_r, _e, meetingId) => [
+        { type: 'Meetings', id: meetingId },
+        { type: 'Meetings', id: 'LIST' },
+      ],
+    }),
+    resendInvitations: build.mutation<Meeting, number>({
+      query: (meetingId) => () => meetingsApi.resendInvitations(meetingId),
       invalidatesTags: (_r, _e, meetingId) => [
         { type: 'Meetings', id: meetingId },
         { type: 'Meetings', id: 'LIST' },
@@ -200,6 +255,96 @@ export const backendApi = createApi({
     >({
       query: (input) => () => meetingsApi.previewContext(input),
     }),
+    deployMeeting: build.mutation<MeetingDeployment, number>({
+      query: (meetingId) => () => meetingsApi.deploy(meetingId),
+      invalidatesTags: (_r, _e, meetingId) => [
+        { type: 'Meetings', id: meetingId },
+        { type: 'Meetings', id: 'LIST' },
+      ],
+    }),
+    getMeetingDeployment: build.query<MeetingDeployment, number>({
+      query: (meetingId) => () => meetingsApi.getDeployment(meetingId),
+      providesTags: (_r, _e, meetingId) => [{ type: 'Meetings', id: `deploy-${meetingId}` }],
+    }),
+
+    // ---- Teams ----
+    getTeams: build.query<Team[], void>({
+      query: () => () => teamsApi.list(),
+      providesTags: ['Teams'],
+    }),
+    createTeam: build.mutation<Team, { name: string }>({
+      query: (input) => () => teamsApi.create(input),
+      invalidatesTags: ['Teams'],
+    }),
+    renameTeam: build.mutation<{ id: number }, { teamId: number; name: string }>({
+      query: ({ teamId, name }) => () => teamsApi.rename(teamId, name),
+      invalidatesTags: ['Teams'],
+    }),
+    deleteTeam: build.mutation<void, number>({
+      query: (teamId) => () => teamsApi.remove(teamId),
+      invalidatesTags: ['Teams'],
+    }),
+    addTeamMember: build.mutation<{ teamId: number; userId: number }, { teamId: number; userId: number }>({
+      query: ({ teamId, userId }) => () => teamsApi.addMember(teamId, userId),
+      invalidatesTags: ['Teams'],
+    }),
+    removeTeamMember: build.mutation<void, { teamId: number; userId: number }>({
+      query: ({ teamId, userId }) => () => teamsApi.removeMember(teamId, userId),
+      invalidatesTags: ['Teams'],
+    }),
+
+    // ---- Admin ----
+    getAdminDashboard: build.query<AdminDashboard, void>({
+      query: () => () => adminApi.getDashboard(),
+      providesTags: ['AdminDashboard'],
+    }),
+    getAdminAnalytics: build.query<AdminAnalytics, void>({
+      query: () => () => adminApi.getAnalytics(),
+      providesTags: ['AdminAnalytics'],
+    }),
+    getAdminUsers: build.query<AdminUser[], void>({
+      query: () => () => adminApi.listUsers(),
+      providesTags: ['AdminUsers'],
+    }),
+    changeUserRole: build.mutation<{ userId: number; role: OrgRole }, { userId: number; role: OrgRole }>({
+      query: ({ userId, role }) => () => adminApi.changeUserRole(userId, role),
+      invalidatesTags: ['AdminUsers', 'AdminDashboard'],
+    }),
+    setUserStatus: build.mutation<{ userId: number; status: UserStatus }, { userId: number; status: UserStatus }>({
+      query: ({ userId, status }) => () => adminApi.setUserStatus(userId, status),
+      invalidatesTags: ['AdminUsers'],
+    }),
+    forceLogoutUser: build.mutation<{ userId: number }, number>({
+      query: (userId) => () => adminApi.forceLogout(userId),
+    }),
+    removeAdminUser: build.mutation<void, number>({
+      query: (userId) => () => adminApi.removeUser(userId),
+      invalidatesTags: ['AdminUsers', 'AdminDashboard'],
+    }),
+    getAuditLog: build.query<AuditLogEntry[], void>({
+      query: () => () => adminApi.getAuditLog(),
+      providesTags: ['AuditLog'],
+    }),
+    getLoginHistory: build.query<LoginEvent[], void>({
+      query: () => () => adminApi.getLoginHistory(),
+      providesTags: ['LoginHistory'],
+    }),
+    getOrgSettings: build.query<OrgSettings, void>({
+      query: () => () => adminApi.getSettings(),
+      providesTags: ['OrgSettings'],
+    }),
+    updateOrgSettings: build.mutation<OrgSettings, Partial<{ name: string; settings: Record<string, unknown> }>>({
+      query: (input) => () => adminApi.updateSettings(input),
+      invalidatesTags: ['OrgSettings'],
+    }),
+    bulkUpdateTaskStatus: build.mutation<{ updated: number[] }, { taskIds: number[]; status: string }>({
+      query: ({ taskIds, status }) => () => adminApi.bulkUpdateTaskStatus(taskIds, status),
+      invalidatesTags: ['Board'],
+    }),
+    bulkDeleteTasks: build.mutation<{ deleted: number[] }, number[]>({
+      query: (taskIds) => () => adminApi.bulkDeleteTasks(taskIds),
+      invalidatesTags: ['Board'],
+    }),
   }),
 });
 
@@ -207,6 +352,8 @@ export const {
   useGetUsersQuery,
   useGetProjectsQuery,
   useCreateProjectMutation,
+  useUpdateProjectMutation,
+  useDeleteProjectMutation,
   useGetBoardQuery,
   useCreateTaskMutation,
   useUpdateTaskStatusMutation,
@@ -218,8 +365,31 @@ export const {
   useGetMeetingQuery,
   useCreateMeetingMutation,
   useUpdateMeetingMutation,
+  useDeleteMeetingMutation,
   useCancelMeetingMutation,
+  useResendInvitationsMutation,
   useGetMeetingContextQuery,
   useGenerateMeetingContextMutation,
   usePreviewMeetingContextMutation,
+  useDeployMeetingMutation,
+  useGetMeetingDeploymentQuery,
+  useGetTeamsQuery,
+  useCreateTeamMutation,
+  useRenameTeamMutation,
+  useDeleteTeamMutation,
+  useAddTeamMemberMutation,
+  useRemoveTeamMemberMutation,
+  useGetAdminDashboardQuery,
+  useGetAdminAnalyticsQuery,
+  useGetAdminUsersQuery,
+  useChangeUserRoleMutation,
+  useSetUserStatusMutation,
+  useForceLogoutUserMutation,
+  useRemoveAdminUserMutation,
+  useGetAuditLogQuery,
+  useGetLoginHistoryQuery,
+  useGetOrgSettingsQuery,
+  useUpdateOrgSettingsMutation,
+  useBulkUpdateTaskStatusMutation,
+  useBulkDeleteTasksMutation,
 } = backendApi;

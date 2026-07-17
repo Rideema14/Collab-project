@@ -2,8 +2,15 @@
 
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { useAppDispatch } from '@/store/hooks';
+import { useGetUsersQuery } from '@/store/api/backendApi';
+import { setPriority } from '@/store/slices/tasksSlice';
+import { PRIORITY_META } from '@/lib/domain/defaults';
+import type { Priority } from '@/lib/domain/types';
 import { cn } from '@/lib/design/cn';
 import { useListActions } from './useListActions';
+
+const QUICK_PRIORITIES: Priority[] = ['none', 'low', 'normal', 'high', 'urgent'];
 
 /**
  * Inline "add a card" affordance. Creates a backend task, then drops it into the
@@ -27,7 +34,9 @@ export function QuickAddTask({
   /** When controlled + closed, render nothing instead of the "Add task" button. */
   hideTrigger?: boolean;
 }) {
+  const dispatch = useAppDispatch();
   const { createTask } = useListActions(listId);
+  const { data: users = [] } = useGetUsersQuery();
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const setOpen = (next: boolean) => {
@@ -35,15 +44,26 @@ export function QuickAddTask({
     else setOpenState(next);
   };
   const [title, setTitle] = useState('');
+  const [assigneeId, setAssigneeId] = useState<number | null>(null);
+  const [dueDate, setDueDate] = useState('');
+  const [priority, setPriorityDraft] = useState<Priority>('none');
   const [busy, setBusy] = useState(false);
+
+  function reset() {
+    setTitle('');
+    setAssigneeId(null);
+    setDueDate('');
+    setPriorityDraft('none');
+  }
 
   async function submit() {
     const value = title.trim();
     if (!value || busy) return;
     setBusy(true);
     try {
-      await createTask({ title: value, statusId });
-      setTitle('');
+      const created = await createTask({ title: value, statusId, assigneeId, dueDate: dueDate || null });
+      if (created && priority !== 'none') dispatch(setPriority({ taskId: created.id, priority }));
+      reset();
     } finally {
       setBusy(false);
     }
@@ -66,7 +86,12 @@ export function QuickAddTask({
   }
 
   return (
-    <div className="rounded-lg border border-primary bg-surface p-2 shadow-sm">
+    <div
+      className="rounded-lg border border-primary bg-surface p-2 shadow-sm"
+      onBlur={(e) => {
+        if (!title.trim() && !e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
       {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
       <textarea
         autoFocus
@@ -80,14 +105,55 @@ export function QuickAddTask({
           }
           if (e.key === 'Escape') setOpen(false);
         }}
-        onBlur={() => {
-          if (!title.trim()) setOpen(false);
-        }}
         placeholder="Task name…"
         className="w-full resize-none bg-transparent text-sm text-text outline-none placeholder:text-text-subtle"
       />
-      <div className="mt-1 flex items-center justify-end gap-1.5">
-        <button type="button" onClick={() => setOpen(false)} className="rounded px-2 py-1 text-xs text-text-muted hover:bg-surface-muted">
+
+      {/* Quick-set: assignee, due date, priority — matches the fuller task drawer, without opening it. */}
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <select
+          value={assigneeId ?? ''}
+          onChange={(e) => setAssigneeId(e.target.value ? Number(e.target.value) : null)}
+          aria-label="Assignee"
+          className="h-6 rounded border border-border bg-surface px-1 text-[11px] text-text-muted"
+        >
+          <option value="">Unassigned</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          aria-label="Due date"
+          className="h-6 rounded border border-border bg-surface px-1 text-[11px] text-text-muted"
+        />
+        <select
+          value={priority}
+          onChange={(e) => setPriorityDraft(e.target.value as Priority)}
+          aria-label="Priority"
+          className="h-6 rounded border border-border bg-surface px-1 text-[11px] text-text-muted"
+        >
+          {QUICK_PRIORITIES.map((p) => (
+            <option key={p} value={p}>
+              {PRIORITY_META[p].label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mt-1.5 flex items-center justify-end gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            reset();
+            setOpen(false);
+          }}
+          className="rounded px-2 py-1 text-xs text-text-muted hover:bg-surface-muted"
+        >
           Cancel
         </button>
         <button

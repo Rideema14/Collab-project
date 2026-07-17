@@ -20,7 +20,19 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CheckSquare, GripVertical, MoreHorizontal, Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
+import {
+  Archive,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  CheckSquare,
+  GripVertical,
+  MoreHorizontal,
+  Palette,
+  Pencil,
+  Plus,
+  Settings2,
+  Trash2,
+} from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { openTask } from '@/store/slices/uiSlice';
 import { setOrder, addSubtask } from '@/store/slices/tasksSlice';
@@ -42,6 +54,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu';
 import { IconButton } from '@/components/ui/Misc';
+import { HuePicker } from '@/components/domain/HuePicker';
 import { QuickAddTask } from '@/features/list/QuickAddTask';
 
 /** Prefix distinguishing a column-header drag (reordering statuses) from a task-card drag, in the one shared DndContext. */
@@ -132,10 +145,12 @@ export function BoardView({ listId }: { listId: string }) {
           items={columns.map((c) => `${COL_PREFIX}${c.status.id}`)}
           strategy={horizontalListSortingStrategy}
         >
-          {columns.map((col) => (
+          {columns.map((col, index) => (
             <BoardColumn
               key={col.status.id}
               column={col}
+              index={index}
+              columnCount={columns.length}
               listId={listId}
               commentsByTask={commentsByTask}
               onOpen={handleOpen}
@@ -161,6 +176,8 @@ export function BoardView({ listId }: { listId: string }) {
 
 const BoardColumn = memo(function BoardColumn({
   column,
+  index,
+  columnCount,
   listId,
   commentsByTask,
   onOpen,
@@ -169,6 +186,8 @@ const BoardColumn = memo(function BoardColumn({
   onAddSubtask,
 }: {
   column: StatusColumn;
+  index: number;
+  columnCount: number;
   listId: string;
   commentsByTask: Record<number, unknown[]>;
   onOpen: (id: number) => void;
@@ -178,6 +197,7 @@ const BoardColumn = memo(function BoardColumn({
 }) {
   const { theme } = useTheme();
   const { setNodeRef, isOver } = useDroppable({ id: `col:${column.status.id}` });
+  const { rename, recolor, reorder, setArchived, remove } = useStatusActions(listId);
   const {
     attributes: colAttributes,
     listeners: colListeners,
@@ -188,7 +208,19 @@ const BoardColumn = memo(function BoardColumn({
   } = useSortable({ id: `${COL_PREFIX}${column.status.id}` });
   const c = statusColors(column.status.hue, theme);
   const [adding, setAdding] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [recoloring, setRecoloring] = useState(false);
+  const [nameDraft, setNameDraft] = useState(column.status.name);
   const count = column.tasks.length;
+  const wipLimit = column.status.wipLimit ?? null;
+  const overWip = wipLimit != null && count > wipLimit;
+
+  function commitRename() {
+    setRenaming(false);
+    const trimmed = nameDraft.trim();
+    if (trimmed && trimmed !== column.status.name) rename(column.status.id, trimmed);
+    else setNameDraft(column.status.name);
+  }
 
   return (
     <section
@@ -204,29 +236,71 @@ const BoardColumn = memo(function BoardColumn({
       )}
     >
       <header
-        {...colAttributes}
-        {...colListeners}
+        {...(renaming ? {} : colAttributes)}
+        {...(renaming ? {} : colListeners)}
         className="flex cursor-grab items-center gap-2 rounded-t-2xl px-4 pt-4 pb-3 touch-none active:cursor-grabbing"
         style={{ background: `linear-gradient(180deg, ${c.soft}, transparent)` }}
       >
         <GripVertical className="h-3.5 w-3.5 shrink-0 text-text-subtle/50" aria-hidden />
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.solid }} />
-        <h3 className="text-sm font-semibold text-text">{column.status.name}</h3>
+        {renaming ? (
+          // eslint-disable-next-line jsx-a11y/no-autofocus
+          <input
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename();
+              if (e.key === 'Escape') {
+                setNameDraft(column.status.name);
+                setRenaming(false);
+              }
+            }}
+            onBlur={commitRename}
+            className="min-w-0 flex-1 rounded border border-primary bg-white/80 px-1 text-sm font-semibold text-text outline-none"
+          />
+        ) : (
+          <h3 className="text-sm font-semibold text-text">{column.status.name}</h3>
+        )}
         <span
-          className="rounded-md px-1.5 py-0.5 text-[11px] font-medium"
-          style={{ backgroundColor: c.soft, color: c.onSoft }}
+          className={cn(
+            'rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+            overWip ? 'bg-danger-soft text-danger-fg' : undefined
+          )}
+          style={overWip ? undefined : { backgroundColor: c.soft, color: c.onSoft }}
+          title={wipLimit != null ? `WIP limit ${wipLimit}` : undefined}
         >
-          {count} {count === 1 ? 'task' : 'tasks'}
+          {count}
+          {wipLimit != null ? `/${wipLimit}` : ''} {count === 1 ? 'task' : 'tasks'}
         </span>
         <button
           type="button"
           onClick={() => setAdding(true)}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={`Add task to ${column.status.name}`}
-          className="ml-auto grid h-6 w-6 place-items-center rounded-md text-text-subtle transition-colors hover:bg-glass-border hover:text-text"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-text-subtle transition-colors hover:bg-glass-border hover:text-text"
         >
           <Plus className="h-4 w-4" />
         </button>
+        <ColumnMenu
+          onMoveLeft={index > 0 ? () => reorder(column.status.id, index - 1) : undefined}
+          onMoveRight={index < columnCount - 1 ? () => reorder(column.status.id, index + 1) : undefined}
+          onRename={() => setRenaming(true)}
+          onRecolor={() => setRecoloring(true)}
+          onArchive={() => setArchived(column.status.id, true)}
+          onDelete={() => remove(column.status.id)}
+        />
+        {recoloring && (
+          <Popover open onOpenChange={(o) => !o && setRecoloring(false)}>
+            <PopoverTrigger asChild>
+              <span className="h-0 w-0" />
+            </PopoverTrigger>
+            <PopoverContent className="w-auto" align="end">
+              <HuePicker value={column.status.hue} onChange={(hue) => recolor(column.status.id, hue)} />
+            </PopoverContent>
+          </Popover>
+        )}
       </header>
 
       <div
@@ -349,6 +423,59 @@ const SortableCard = memo(function SortableCard({
     </div>
   );
 });
+
+/** Per-column status settings: rename, recolor, move, archive, delete. */
+function ColumnMenu({
+  onMoveLeft,
+  onMoveRight,
+  onRename,
+  onRecolor,
+  onArchive,
+  onDelete,
+}: {
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  onRename: () => void;
+  onRecolor: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Status settings"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-text-subtle transition-colors hover:bg-glass-border hover:text-text"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={onRename}>
+          <Pencil className="h-4 w-4" /> Rename
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onRecolor}>
+          <Palette className="h-4 w-4" /> Recolor
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={!onMoveLeft} onSelect={onMoveLeft}>
+          <ArrowLeftToLine className="h-4 w-4" /> Move left
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={!onMoveRight} onSelect={onMoveRight}>
+          <ArrowRightToLine className="h-4 w-4" /> Move right
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onArchive}>
+          <Archive className="h-4 w-4" /> Archive
+        </DropdownMenuItem>
+        <DropdownMenuItem destructive onSelect={onDelete}>
+          <Trash2 className="h-4 w-4" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 /** Hover/focus card actions. Stops pointer/click from reaching the drag+open handlers. */
 function CardMenu({

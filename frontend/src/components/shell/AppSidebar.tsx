@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Archive,
+  ArchiveRestore,
   CalendarClock,
   ChevronRight,
   ChevronsLeft,
@@ -23,7 +25,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { useAppDispatch, useAppSelector, useAppStore } from '@/store/hooks';
 import {
   selectExpanded,
   selectFavorites,
@@ -35,7 +37,6 @@ import {
   selectSidebarCollapsed,
   selectMobileSidebarOpen,
   selectSessionUser,
-  selectMyPermissions,
 } from '@/store/selectors';
 import {
   addFolder,
@@ -49,12 +50,18 @@ import {
   DEFAULT_STATUS_SET_ID,
 } from '@/store/slices/hierarchySlice';
 import { setMobileSidebarOpen, toggleSidebar, toggleFavorite } from '@/store/slices/uiSlice';
-import { useCreateProjectMutation } from '@/store/api/backendApi';
+import {
+  backendApi,
+  useCreateProjectMutation,
+  useDeleteTaskMutation,
+  useGetAdminDashboardQuery,
+} from '@/store/api/backendApi';
 import { statusColors } from '@/lib/domain/status-color';
 import { cn } from '@/lib/design/cn';
 import type { Folder, List, Space } from '@/lib/domain/types';
 import { Avatar } from '@/components/domain/AvatarStack';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { useToast } from '@/lib/toast-context';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +69,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu';
+
+/**
+ * The caller's REAL org role, not the old client-only orgSlice guess — reuses
+ * whichever component already queries the admin dashboard (RTK Query dedupes
+ * identical in-flight/cached queries, so this never fires more than one
+ * request no matter how many places call it).
+ */
+function useIsOrgAdmin(): boolean {
+  const { data } = useGetAdminDashboardQuery();
+  return Boolean(data);
+}
 
 /**
  * ClickUp-style navigation: primary nav (Home / Inbox / People), a Favorites
@@ -120,7 +138,7 @@ function PanelContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigat
   const workspaces = useAppSelector(selectHierarchy).workspaces;
   const activeWsId = useAppSelector(selectActiveWorkspaceId);
   const user = useAppSelector(selectSessionUser);
-  const isAdmin = useAppSelector(selectMyPermissions).includes('member.manage');
+  const isAdmin = useIsOrgAdmin();
   const activeWs = workspaces.find((w) => w.id === activeWsId) ?? workspaces[0];
 
   const favLists = favorites
@@ -470,13 +488,31 @@ function FolderNode({ folder, onNavigate }: { folder: Folder; onNavigate?: () =>
 
 function ListLink({ list, depth, onNavigate }: { list: List; depth: number; onNavigate?: () => void }) {
   const dispatch = useAppDispatch();
+  const store = useAppStore();
+  const { notify } = useToast();
   const pathname = usePathname();
   const favorites = useAppSelector(selectFavorites);
+  const isAdmin = useIsOrgAdmin();
+  const [deleteTask] = useDeleteTaskMutation();
   const href = `/list/${list.id}`;
   const active = pathname === href;
   const fav = favorites.includes(list.id);
   const [renaming, setRenaming] = useState(false);
   const pad = 8 + depth * 16;
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete "${list.name}" and all its tasks? This can't be undone.`)) return;
+    const sub = store.dispatch(backendApi.endpoints.getBoard.initiate(list.backendProjectId));
+    try {
+      const board = await sub.unwrap();
+      const tasks = Object.values(board).flat();
+      for (const t of tasks) await deleteTask({ projectId: list.backendProjectId, taskId: t.id }).unwrap().catch(() => {});
+      dispatch(updateList({ id: list.id, changes: { archived: true } }));
+      notify('success', `Deleted "${list.name}" (${tasks.length} tasks)`);
+    } finally {
+      sub.unsubscribe();
+    }
+  }
 
   if (renaming) {
     return (
@@ -524,6 +560,16 @@ function ListLink({ list, depth, onNavigate }: { list: List; depth: number; onNa
             icon: Star,
             onSelect: () => dispatch(toggleFavorite(list.id)),
           },
+          ...(isAdmin
+            ? [
+                {
+                  label: list.archived ? 'Restore' : 'Archive',
+                  icon: list.archived ? ArchiveRestore : Archive,
+                  onSelect: () => dispatch(updateList({ id: list.id, changes: { archived: !list.archived } })),
+                },
+                { label: 'Delete', icon: Trash2, destructive: true, onSelect: () => void handleDelete() },
+              ]
+            : []),
         ]}
       />
     </div>

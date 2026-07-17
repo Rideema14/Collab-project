@@ -12,16 +12,17 @@ import { Avatar } from '@/components/domain/AvatarStack';
 import { StatusChip } from '@/components/domain/StatusChip';
 import { PriorityFlag } from '@/components/domain/PriorityFlag';
 import { TagChip } from '@/components/domain/TagChip';
-import { useListData } from '@/features/list/useListData';
+import { useListData, groupTasksBy } from '@/features/list/useListData';
 
 const COLUMNS = ['Task', 'Status', 'Assignee', 'Due', 'Priority', 'Tags', 'Progress'] as const;
 
-/** Spreadsheet view — every field, plus this list's custom fields, in one grid. */
+/** Spreadsheet view — every field, plus this list's custom fields, in one grid. Sectioned by the toolbar's Group selector. */
 export function TableView({ listId }: { listId: string }) {
-  const { allTasks, prefs } = useListData(listId);
+  const { allTasks, prefs, statusSet } = useListData(listId);
   const dispatch = useAppDispatch();
   const tags = useAppSelector(selectTags);
   const fields = useAppSelector(selectFieldsForList(listId));
+  const colCount = COLUMNS.length + fields.length;
 
   const sorted = allTasks
     .slice()
@@ -30,6 +31,16 @@ export function TableView({ listId }: { listId: string }) {
         a.status.order - b.status.order ||
         PRIORITY_META[a.rich.priority].rank - PRIORITY_META[b.rich.priority].rank
     );
+
+  const groups =
+    prefs.groupBy === 'status'
+      ? (statusSet?.statuses ?? [])
+          .filter((s) => !s.archived)
+          .slice()
+          .sort((a, b) => a.order - b.order)
+          .map((s) => ({ id: s.id, label: s.name, hue: s.hue, tasks: sorted.filter((t) => t.status.id === s.id) }))
+          .filter((g) => g.tasks.length > 0)
+      : groupTasksBy(sorted, prefs.groupBy).map((g) => ({ id: g.key, label: g.label, hue: g.hue, tasks: g.tasks }));
 
   return (
     <div className="px-4 py-4">
@@ -50,13 +61,40 @@ export function TableView({ listId }: { listId: string }) {
             </tr>
           </thead>
           <tbody className={cn('divide-y divide-border', prefs.density === 'compact' && '[&_td]:py-1.5')}>
-            {sorted.map((task) => (
-              <TableRow key={task.id} task={task} allTags={tags} fields={fields} onOpen={() => dispatch(openTask(task.id))} />
+            {groups.map((g) => (
+              <GroupSection key={g.id} group={g} colCount={colCount} tags={tags} fields={fields} onOpen={(id) => dispatch(openTask(id))} />
             ))}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+function GroupSection({
+  group,
+  colCount,
+  tags,
+  fields,
+  onOpen,
+}: {
+  group: { id: string; label: string; hue: number; tasks: TaskVM[] };
+  colCount: number;
+  tags: { id: string; label: string; hue: number }[];
+  fields: CustomFieldDef[];
+  onOpen: (id: number) => void;
+}) {
+  return (
+    <>
+      <tr className="bg-surface-muted/60">
+        <td colSpan={colCount} className="px-3 py-1.5 text-xs font-semibold text-text-muted">
+          {group.label} <span className="font-normal text-text-subtle">({group.tasks.length})</span>
+        </td>
+      </tr>
+      {group.tasks.map((task) => (
+        <TableRow key={task.id} task={task} allTags={tags} fields={fields} onOpen={() => onOpen(task.id)} />
+      ))}
+    </>
   );
 }
 

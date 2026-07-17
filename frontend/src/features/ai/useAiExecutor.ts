@@ -11,6 +11,7 @@ import {
   useUpdateTaskMutation,
   useUpdateTaskStatusMutation,
   useGetUsersQuery,
+  useCreateMeetingMutation,
 } from '@/store/api/backendApi';
 import {
   addList,
@@ -23,7 +24,7 @@ import { addStatus, updateStatus, removeStatus, cloneSetForList } from '@/store/
 import { selectStatusSetForList } from '@/store/selectors';
 import { STATUS_HUES } from '@/lib/domain/status-color';
 import { daysUntilDue } from '@/lib/format';
-import type { AiAction, AiFilter, AiPlan, User } from '@/lib/types';
+import { MEETING_TYPES, type AiAction, type AiFilter, type AiPlan, type MeetingType, type User } from '@/lib/types';
 import type { List, Priority } from '@/lib/domain/types';
 import type { RootState } from '@/store/store';
 
@@ -58,6 +59,7 @@ export function useAiExecutor() {
   const [updateTask] = useUpdateTaskMutation();
   const [updateTaskStatus] = useUpdateTaskStatusMutation();
   const [deleteTask] = useDeleteTaskMutation();
+  const [createMeeting] = useCreateMeetingMutation();
 
   const runPlan = useCallback(
     async (plan: AiPlan): Promise<string> => {
@@ -310,6 +312,35 @@ export function useAiExecutor() {
             const label = a.project ? `“${resolveList(a.project)?.name ?? a.project}”` : 'the workspace';
             return `Summary of ${label}: ${tasks.length} tasks, ${done} done (${pct}%), ${tasks.length - done} active, ${overdue} overdue.`;
           }
+          case 'schedule_meeting': {
+            const list = resolveList(a.project) ?? currentList();
+            if (!list) return `Couldn't find a project to attach this meeting to.`;
+            const scheduledAt = a.scheduledAt ? new Date(a.scheduledAt) : null;
+            if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+              return `I need a valid date/time to schedule "${a.title || 'that meeting'}".`;
+            }
+            const resolvedParticipants = (a.participants ?? [])
+              .map((name) => resolveUser(name))
+              .filter((u): u is User => Boolean(u));
+            const selfId = state().session.user?.id;
+            const participantIds = resolvedParticipants.length
+              ? resolvedParticipants.map((u) => u.id)
+              : selfId
+                ? [selfId]
+                : [];
+            if (!participantIds.length) return `I need at least one participant to schedule "${a.title}".`;
+            if (!a.meetingUrl?.trim()) return `I need a meeting link to schedule "${a.title}".`;
+            const meeting = await createMeeting({
+              title: a.title || 'New meeting',
+              type: (MEETING_TYPES as readonly string[]).includes(a.meetingType ?? '') ? (a.meetingType as MeetingType) : undefined,
+              scheduledAt: scheduledAt.toISOString(),
+              meetingUrl: a.meetingUrl.trim(),
+              projectIds: [list.backendProjectId],
+              participantUserIds: participantIds,
+            }).unwrap();
+            router.push(`/meetings/${meeting.id}`);
+            return `Scheduled “${meeting.title}” and opened it.`;
+          }
           case 'workload': {
             const tasks = await loadAllTasks();
             const byPerson = new Map<string, { active: number; done: number }>();
@@ -341,7 +372,7 @@ export function useAiExecutor() {
       }
       return lines.join('\n\n');
     },
-    [store, router, users, createProject, createTask, updateTask, updateTaskStatus, deleteTask]
+    [store, router, users, createProject, createTask, updateTask, updateTaskStatus, deleteTask, createMeeting]
   );
 
   return { runPlan };

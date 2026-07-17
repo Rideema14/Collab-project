@@ -65,6 +65,13 @@ export const selectTags = (s: RootState) => s.org.tags;
 export const selectAudit = (s: RootState) => s.org.audit;
 export const selectTeams = (s: RootState) => s.org.teams;
 
+const EMPTY_SPRINTS: import('@/lib/domain/types').SprintDef[] = [];
+export const selectSprintsForList = (listId: string) => (s: RootState) =>
+  s.sprints.byList[listId] ?? EMPTY_SPRINTS;
+
+export const selectSavedViewsForList = (listId: string) => (s: RootState) =>
+  s.tasks.savedViews.filter((v) => v.listId === listId);
+
 /**
  * Permissions granted to the signed-in user by their role — empty when signed
  * out or not yet in the member roster. UI-level only (see orgSlice).

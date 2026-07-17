@@ -9,6 +9,8 @@ const { nestedRouter: taskNestedRoutes, flatRouter: taskFlatRoutes } = require('
 const voiceRoutes = require('./modules/voice/voice.routes');
 const aiRoutes = require('./modules/ai/ai.routes');
 const meetingsRoutes = require('./modules/meetings/meetings.routes');
+const teamsRoutes = require('./modules/teams/teams.routes');
+const adminRoutes = require('./modules/admin/admin.routes');
 const { errorMiddleware } = require('./middleware/error.middleware');
 const { ApiError } = require('./utils/ApiError');
 
@@ -31,6 +33,8 @@ app.use('/api/projects/:projectId/tasks', taskNestedRoutes);
 app.use('/api/tasks', taskFlatRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/meetings', meetingsRoutes);
+app.use('/api/teams', teamsRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use((req, res, next) => next(new ApiError(404, 'Route not found')));
 app.use(errorMiddleware);

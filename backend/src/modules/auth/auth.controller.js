@@ -7,7 +7,7 @@ const register = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
-  const result = await service.login(req.body || {});
+  const result = await service.login(req.body || {}, { ip: req.ip, userAgent: req.headers['user-agent'] });
   res.status(200).json({ success: true, data: result });
 });
 

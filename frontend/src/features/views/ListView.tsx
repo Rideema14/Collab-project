@@ -12,28 +12,43 @@ import { formatDueDate } from '@/lib/format';
 import type { TaskVM } from '@/lib/domain/types';
 import { Avatar } from '@/components/domain/AvatarStack';
 import { PriorityFlag } from '@/components/domain/PriorityFlag';
-import { useListData, type StatusColumn } from '@/features/list/useListData';
+import { useListData, groupTasksBy } from '@/features/list/useListData';
 import { QuickAddTask } from '@/features/list/QuickAddTask';
 
-/** Grouped-by-status list view — the dense, scannable counterpart to the board. */
+interface RenderGroup {
+  id: string;
+  label: string;
+  hue: number;
+  tasks: TaskVM[];
+  /** Only set when grouped by status — lets the group offer a "quick add into this column" composer. */
+  statusId?: string;
+}
+
+/** Grouped list view — status by default, or assignee/priority via the toolbar's Group selector. */
 export function ListView({ listId }: { listId: string }) {
-  const { columns } = useListData(listId);
+  const { columns, allTasks, prefs } = useListData(listId);
+
+  const groups: RenderGroup[] =
+    prefs.groupBy === 'status'
+      ? columns.map((c) => ({ id: c.status.id, label: c.status.name, hue: c.status.hue, tasks: c.tasks, statusId: c.status.id }))
+      : groupTasksBy(allTasks, prefs.groupBy).map((g) => ({ id: g.key, label: g.label, hue: g.hue, tasks: g.tasks }));
+
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-4 py-4">
-      {columns.map((col) => (
-        <Group key={col.status.id} column={col} listId={listId} />
+      {groups.map((g) => (
+        <Group key={g.id} group={g} listId={listId} />
       ))}
     </div>
   );
 }
 
-function Group({ column, listId }: { column: StatusColumn; listId: string }) {
+function Group({ group, listId }: { group: RenderGroup; listId: string }) {
   const dispatch = useAppDispatch();
   const { theme } = useTheme();
   const expanded = useAppSelector(selectExpanded);
-  const key = `listgroup:${listId}:${column.status.id}`;
+  const key = `listgroup:${listId}:${group.id}`;
   const open = expanded[key] !== false; // default open
-  const c = statusColors(column.status.hue, theme);
+  const c = statusColors(group.hue, theme);
 
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -44,21 +59,23 @@ function Group({ column, listId }: { column: StatusColumn; listId: string }) {
       >
         <ChevronRight className={cn('h-4 w-4 transition-transform', open && 'rotate-90')} style={{ color: c.onSoft }} />
         <span className="text-sm font-semibold" style={{ color: c.onSoft }}>
-          {column.status.name}
+          {group.label}
         </span>
         <span className="text-xs" style={{ color: c.onSoft }}>
-          {column.tasks.length}
+          {group.tasks.length}
         </span>
       </header>
 
       {open && (
         <div className="divide-y divide-border">
-          {column.tasks.map((task) => (
+          {group.tasks.map((task) => (
             <Row key={task.id} task={task} onOpen={() => dispatch(openTask(task.id))} />
           ))}
-          <div className="px-2 py-1">
-            <QuickAddTask listId={listId} statusId={column.status.id} variant="row" />
-          </div>
+          {group.statusId && (
+            <div className="px-2 py-1">
+              <QuickAddTask listId={listId} statusId={group.statusId} variant="row" />
+            </div>
+          )}
         </div>
       )}
     </section>

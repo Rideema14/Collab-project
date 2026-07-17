@@ -10,6 +10,7 @@ import {
   selectOpenTaskId,
   selectRunningTimer,
   selectSessionUser,
+  selectSprintsForList,
   selectTags,
   selectTimeEntries,
 } from '@/store/selectors';
@@ -22,13 +23,20 @@ import {
   logTime,
   removeAttachment,
   removeDependency,
+  removeSubtask,
   setDescription,
   setPriority,
+  setSprint,
+  setSubtaskAssignee,
+  setSubtaskDueDate,
+  setSubtaskPriority,
+  setSubtaskStatus,
   setTags,
   toggleChecklistItem,
   toggleSubtask,
   toggleWatcher,
 } from '@/store/slices/tasksSlice';
+import { addSprint } from '@/store/slices/sprintsSlice';
 import { addComment } from '@/store/slices/commentsSlice';
 import { addField, removeField, setValue, type CustomFieldType } from '@/store/slices/customFieldsSlice';
 import { startTimer, clearTimer, addEntry, removeEntry } from '@/store/slices/timeSlice';
@@ -37,7 +45,7 @@ import { useGetUsersQuery } from '@/store/api/backendApi';
 import { relativeTime, formatDuration } from '@/lib/format';
 import { cn } from '@/lib/design/cn';
 import { PRIORITY_META } from '@/lib/domain/defaults';
-import type { DependencyType, Priority, TaskVM } from '@/lib/domain/types';
+import { normalizeSubtask, type DependencyType, type Priority, type SubtaskStatus, type TaskVM } from '@/lib/domain/types';
 import { Button } from '@/components/ui/Button';
 import { Drawer } from '@/components/ui/Drawer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
@@ -144,6 +152,9 @@ function Body({ listId, taskId }: { listId: string; taskId: number }) {
               </option>
             ))}
           </select>
+        </Meta>
+        <Meta label="Sprint">
+          <SprintPicker listId={listId} taskId={taskId} sprintId={task.rich.sprintId} />
         </Meta>
         <Meta label="Watchers">
           <div className="flex flex-wrap items-center gap-1">
@@ -298,19 +309,143 @@ function TagEditor({ taskId, current }: { taskId: number; current: string[] }) {
   );
 }
 
+function SprintPicker({ listId, taskId, sprintId }: { listId: string; taskId: number; sprintId: string | null }) {
+  const dispatch = useAppDispatch();
+  const sprints = useAppSelector(selectSprintsForList(listId));
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+
+  if (creating) {
+    return (
+      <form
+        className="flex gap-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!name.trim()) return;
+          const action = dispatch(addSprint({ listId, name }));
+          dispatch(setSprint({ taskId, sprintId: action.payload.id }));
+          setName('');
+          setCreating(false);
+        }}
+      >
+        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => !name.trim() && setCreating(false)}
+          placeholder="Sprint name…"
+          className="w-full rounded border border-border bg-surface px-1.5 py-1 text-sm text-text outline-none focus:border-primary"
+        />
+      </form>
+    );
+  }
+
+  return (
+    <select
+      value={sprintId ?? ''}
+      onChange={(e) => {
+        if (e.target.value === '__new__') setCreating(true);
+        else dispatch(setSprint({ taskId, sprintId: e.target.value || null }));
+      }}
+      className="w-full rounded border border-border bg-surface px-1.5 py-1 text-sm text-text"
+    >
+      <option value="">No sprint</option>
+      {sprints.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.name}
+        </option>
+      ))}
+      <option value="__new__">+ New sprint…</option>
+    </select>
+  );
+}
+
+const SUBTASK_STATUSES: SubtaskStatus[] = ['todo', 'in_progress', 'done'];
+const SUBTASK_STATUS_LABEL: Record<SubtaskStatus, string> = { todo: 'To do', in_progress: 'In progress', done: 'Done' };
+
 function Subtasks({ taskId }: { taskId: number }) {
   const dispatch = useAppDispatch();
   const task = useAppSelector((s) => s.tasks.richById[taskId]);
+  const { data: users = [] } = useGetUsersQuery();
   const [title, setTitle] = useState('');
-  const subs = task?.subtasks ?? [];
+  const subs = (task?.subtasks ?? []).map(normalizeSubtask);
+  const done = subs.filter((s) => s.status === 'done').length;
+
   return (
-    <div className="space-y-1.5">
-      {subs.map((sub) => (
-        <label key={sub.id} className="flex items-center gap-2 text-sm">
-          <Checkbox checked={sub.done} onCheckedChange={() => dispatch(toggleSubtask({ taskId, subtaskId: sub.id }))} />
-          <span className={sub.done ? 'text-text-subtle line-through' : 'text-text'}>{sub.title}</span>
-        </label>
-      ))}
+    <div className="space-y-2">
+      {subs.length > 0 && (
+        <p className="text-xs text-text-subtle">
+          {done}/{subs.length} complete
+        </p>
+      )}
+      <div className="space-y-1.5">
+        {subs.map((sub) => (
+          <div key={sub.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-border p-1.5">
+            <Checkbox
+              checked={sub.status === 'done'}
+              onCheckedChange={() => dispatch(toggleSubtask({ taskId, subtaskId: sub.id }))}
+            />
+            <span className={cn('min-w-[6rem] flex-1 text-sm', sub.status === 'done' ? 'text-text-subtle line-through' : 'text-text')}>
+              {sub.title}
+            </span>
+            <select
+              value={sub.status}
+              onChange={(e) => dispatch(setSubtaskStatus({ taskId, subtaskId: sub.id, status: e.target.value as SubtaskStatus }))}
+              aria-label={`Status for ${sub.title}`}
+              className="rounded border border-border bg-surface px-1 py-0.5 text-xs text-text-muted"
+            >
+              {SUBTASK_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {SUBTASK_STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sub.priority}
+              onChange={(e) => dispatch(setSubtaskPriority({ taskId, subtaskId: sub.id, priority: e.target.value as Priority }))}
+              aria-label={`Priority for ${sub.title}`}
+              className="rounded border border-border bg-surface px-1 py-0.5 text-xs text-text-muted"
+            >
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {PRIORITY_META[p].label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={sub.dueDate ?? ''}
+              onChange={(e) => dispatch(setSubtaskDueDate({ taskId, subtaskId: sub.id, dueDate: e.target.value || null }))}
+              aria-label={`Due date for ${sub.title}`}
+              className="rounded border border-border bg-surface px-1 py-0.5 text-xs text-text-muted"
+            />
+            <select
+              value={sub.assigneeId ?? ''}
+              onChange={(e) =>
+                dispatch(setSubtaskAssignee({ taskId, subtaskId: sub.id, assigneeId: e.target.value ? Number(e.target.value) : null }))
+              }
+              aria-label={`Assignee for ${sub.title}`}
+              className="rounded border border-border bg-surface px-1 py-0.5 text-xs text-text-muted"
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => dispatch(removeSubtask({ taskId, subtaskId: sub.id }))}
+              aria-label={`Remove ${sub.title}`}
+              className="ml-auto grid h-6 w-6 shrink-0 place-items-center rounded text-text-subtle hover:bg-danger-soft hover:text-danger"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
       <form
         className="flex gap-2 pt-1"
         onSubmit={(e) => {

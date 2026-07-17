@@ -11,12 +11,13 @@ const createMeeting = asyncHandler(async (req, res) => {
     projectIds,
     participantUserIds,
     createdBy: req.user.id,
+    organizationId: req.organizationId,
   });
   res.status(201).json({ success: true, data: meeting });
 });
 
 const listMeetings = asyncHandler(async (req, res) => {
-  const meetings = await service.listMeetings();
+  const meetings = await service.listMeetings(req.organizationId);
   res.json({ success: true, data: meetings });
 });
 
@@ -40,9 +41,21 @@ const updateMeeting = asyncHandler(async (req, res) => {
   res.json({ success: true, data: meeting });
 });
 
+const deleteMeeting = asyncHandler(async (req, res) => {
+  const { meetingId } = req.params;
+  await service.deleteMeeting(meetingId, req.user.id);
+  res.status(204).send();
+});
+
 const cancelMeeting = asyncHandler(async (req, res) => {
   const { meetingId } = req.params;
-  const meeting = await service.cancelMeeting(meetingId);
+  const meeting = await service.cancelMeeting(meetingId, req.user.id);
+  res.json({ success: true, data: meeting });
+});
+
+const resendInvitations = asyncHandler(async (req, res) => {
+  const { meetingId } = req.params;
+  const meeting = await service.resendInvitations(meetingId, req.user.id);
   res.json({ success: true, data: meeting });
 });
 
@@ -60,8 +73,20 @@ const getContext = asyncHandler(async (req, res) => {
 
 const previewContext = asyncHandler(async (req, res) => {
   const { projectIds, participantUserIds } = req.body || {};
-  const payload = await service.previewContext({ projectIds, participantUserIds });
+  const payload = await service.previewContext({ projectIds, participantUserIds, organizationId: req.organizationId });
   res.json({ success: true, data: payload });
+});
+
+const deployMeeting = asyncHandler(async (req, res) => {
+  const { meetingId } = req.params;
+  const result = await service.deployMeeting(meetingId, req.user.id);
+  res.status(201).json({ success: true, data: result });
+});
+
+const getDeployment = asyncHandler(async (req, res) => {
+  const { meetingId } = req.params;
+  const result = await service.getDeploymentStatus(meetingId);
+  res.json({ success: true, data: result });
 });
 
 module.exports = {
@@ -69,8 +94,12 @@ module.exports = {
   listMeetings,
   getMeeting,
   updateMeeting,
+  deleteMeeting,
   cancelMeeting,
+  resendInvitations,
   generateContext,
   getContext,
   previewContext,
+  deployMeeting,
+  getDeployment,
 };

@@ -24,6 +24,7 @@ import dashboardReducer from './slices/dashboardSlice';
 import presenceReducer from './slices/presenceSlice';
 import orgReducer from './slices/orgSlice';
 import sessionReducer from './slices/sessionSlice';
+import sprintsReducer from './slices/sprintsSlice';
 
 /**
  * Redux store: RTK Query (`backendApi`) for the real server, Redux Persist for the
@@ -126,6 +127,7 @@ const rootReducer = combineReducers({
   presence: presenceReducer,
   org: orgReducer,
   session: sessionReducer,
+  sprints: sprintsReducer,
 });
 
 // autoMergeLevel2 is generic, which defeats persistReducer's inference of the
@@ -161,6 +163,7 @@ const persistedRootReducer = persistReducer<RootReducerState>(
       'time',
       'templates',
       'dashboard',
+      'sprints',
     ],
     // A failed write (usually localStorage's ~5MB quota) otherwise fails silently
     // and every later save is lost too — the user only finds out when a reload
