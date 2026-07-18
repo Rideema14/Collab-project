@@ -1,6 +1,7 @@
 const { ApiError } = require('../../utils/ApiError');
 const { logAudit } = require('../../utils/auditLog');
 const { ROLE_RANK } = require('../../middleware/requirePermission');
+const { invalidateAuthState } = require('../../middleware/auth.middleware');
 const repository = require('./admin.repository');
 
 const VALID_ROLES = Object.keys(ROLE_RANK);
@@ -69,6 +70,7 @@ async function setUserStatus(organizationId, userId, status, actorId) {
   }
   const updated = await repository.setUserStatus(userId, status);
   if (!updated) throw new ApiError(404, 'User not found');
+  invalidateAuthState(Number(userId)); // reflect suspend/activate at once despite the cache
   logAudit({
     organizationId,
     actorId,
@@ -83,6 +85,7 @@ async function forceLogout(organizationId, userId, actorId) {
   const membership = await repository.getMembership(organizationId, userId);
   if (!membership) throw new ApiError(404, 'That user is not a member of this organization');
   await repository.bumpTokenVersion(userId);
+  invalidateAuthState(Number(userId)); // force-logout takes effect at once despite the cache
   logAudit({ organizationId, actorId, action: 'user.force_logout', targetType: 'user', targetId: userId }).catch((err) =>
     console.error('[audit] failed to log user.force_logout:', err)
   );
@@ -93,6 +96,7 @@ async function removeUser(organizationId, userId, actorId) {
   await assertNotLastOwner(organizationId, userId, 'remove');
   const removed = await repository.removeMembership(organizationId, userId);
   if (!removed) throw new ApiError(404, 'That user is not a member of this organization');
+  invalidateAuthState(Number(userId)); // drop cached state so removal is reflected at once
   logAudit({ organizationId, actorId, action: 'user.remove', targetType: 'user', targetId: userId }).catch((err) =>
     console.error('[audit] failed to log user.remove:', err)
   );

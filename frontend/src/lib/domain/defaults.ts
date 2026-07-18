@@ -55,7 +55,7 @@ export function defaultRoles(): Role[] {
     {
       id: 'role-admin',
       name: 'Admin',
-      color: '#db441e',
+      color: '#b3cc33',
       system: true,
       permissions: [
         'task.create',
@@ -70,7 +70,7 @@ export function defaultRoles(): Role[] {
     {
       id: 'role-member',
       name: 'Member',
-      color: '#71717a',
+      color: '#c39516',
       system: true,
       permissions: ['task.create', 'task.edit', 'task.delete'],
     },

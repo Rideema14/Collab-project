@@ -39,15 +39,27 @@
 
 
 
-  --burntpeach-100: #371107;
-  --burntpeach-200: #6e220f;
-  --burntpeach-300: #a43316;
-  --burntpeach-400: #db441e;
-  --burntpeach-500: #e76f51;
-  --burntpeach-600: #ec8b73;
-  --burntpeach-700: #f1a896;
-  --burntpeach-800: #f5c5b9;
-  --burntpeach-900: #fae2dc;
+  /* PEAR GREEN — the primary brand hue (yellow-green), 9-step ladder. */
+  --pear-100: #22280a;
+  --pear-200: #3a4610;
+  --pear-300: #556616;
+  --pear-400: #7d971f;
+  --pear-500: #b3cc33;
+  --pear-600: #c4d95c;
+  --pear-700: #d5e386;
+  --pear-800: #e7efb4;
+  --pear-900: #f4f8dd;
+
+  /* GOLD — the secondary yellow accent, 9-step ladder. */
+  --gold-100: #2e2405;
+  --gold-200: #5c470a;
+  --gold-300: #8a6b0f;
+  --gold-400: #c39516;
+  --gold-500: #f5c518;
+  --gold-600: #f8d551;
+  --gold-700: #fae082;
+  --gold-800: #fceeb4;
+  --gold-900: #fef7dd;
 
   /* Neutral "ink" scale — true dark greys with no blue/teal tint, used for the
      dark-theme surface ladder (bg/surface/muted/raised/elevated) so the app
@@ -109,11 +121,12 @@
   --color-text-subtle: #82868e;
   --color-text-inverse: var(--charcoalblue-100);
 
-  --color-primary: var(--burntpeach-400);
-  --color-primary-hover: var(--burntpeach-500);
-  --color-primary-soft: rgb(219 68 30 / 0.18);
-  --color-primary-fg: #ffffff;
-  --color-primary-on-soft: var(--burntpeach-700);
+  --color-primary: var(--pear-500);
+  --color-primary-hover: var(--pear-400);
+  --color-primary-soft: rgb(179 204 51 / 0.18);
+  /* Pear green is bright, so text ON it is near-black, not white. */
+  --color-primary-fg: #141807;
+  --color-primary-on-soft: var(--pear-700);
 
   /* Constant "this is selected" fill — same opaque fill in BOTH themes
      (deliberately not redeclared in the light-theme override below), so an
@@ -121,36 +134,36 @@
      rather than flipping tone with the theme. No alpha — a flat opaque fill,
      not a translucent wash. Reuses the core swatches directly (rather than
      one-off hex) so it stays in lockstep with the brand hue. */
-  --color-primary-selected: var(--burntpeach-600);
-  --color-primary-on-selected: var(--burntpeach-100);
+  --color-primary-selected: var(--pear-500);
+  --color-primary-on-selected: #141807;
 
-  /* Monochrome: accent/success/warning are all shades of the brand orange (no
-     teal/gold). Distinction now comes from shade + iconography, not hue. */
-  --color-accent: var(--burntpeach-500);
-  --color-accent-soft: rgb(231 111 81 / 0.16);
-  --color-accent-fg: var(--burntpeach-100);
+  /* Green + yellow: primary/success = pear green, accent/warning = yellow,
+     danger = deep amber. Bright hues carry near-black foreground text. */
+  --color-accent: var(--gold-500);
+  --color-accent-soft: rgb(245 197 24 / 0.16);
+  --color-accent-fg: #1c1600;
 
-  --color-success: var(--burntpeach-500);
-  --color-success-soft: rgb(231 111 81 / 0.16);
-  --color-success-fg: var(--burntpeach-800);
+  --color-success: var(--pear-500);
+  --color-success-soft: rgb(179 204 51 / 0.16);
+  --color-success-fg: var(--pear-800);
 
-  --color-warning: var(--burntpeach-400);
-  --color-warning-soft: rgb(219 68 30 / 0.16);
-  --color-warning-fg: var(--burntpeach-700);
+  --color-warning: var(--gold-500);
+  --color-warning-soft: rgb(245 197 24 / 0.16);
+  --color-warning-fg: var(--gold-800);
 
-  --color-danger: var(--burntpeach-300);
-  --color-danger-hover: var(--burntpeach-400);
-  --color-danger-soft: rgb(164 51 22 / 0.16);
-  --color-danger-fg: var(--burntpeach-800);
+  --color-danger: var(--gold-400);
+  --color-danger-hover: var(--gold-300);
+  --color-danger-soft: rgb(195 149 22 / 0.18);
+  --color-danger-fg: var(--gold-800);
 
-  --color-focus: var(--burntpeach-400);
+  --color-focus: var(--pear-500);
   --color-overlay: rgb(8 14 17 / 0.66);
   --color-skeleton: rgb(255 255 255 / 0.06);
 
-  /* Glass + depth — warm-tinted so blur/border read as part of the palette. */
-  --glass-bg: rgb(250 226 220 / 0.05);
-  --glass-bg-strong: rgb(250 226 220 / 0.08);
-  --glass-border: rgb(241 168 150 / 0.14);
+  /* Glass + depth — faint green tint so blur/border read as part of the palette. */
+  --glass-bg: rgb(240 248 221 / 0.05);
+  --glass-bg-strong: rgb(240 248 221 / 0.08);
+  --glass-border: rgb(179 204 51 / 0.14);
 
   /* Layered elevation — a tight contact shadow + a soft diffuse ambient one, so
      cards read as gently lifted off the canvas rather than outlined by a single
@@ -159,7 +172,7 @@
   --shadow-md: 0 2px 6px rgb(0 0 0 / 0.35), 0 14px 32px -12px rgb(0 0 0 / 0.6);
   --shadow-lg: 0 4px 10px rgb(0 0 0 / 0.4), 0 30px 64px -18px rgb(0 0 0 / 0.7);
   --shadow-glass: 0 8px 28px -10px rgb(3 5 6 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
-  --shadow-glow: 0 0 0 1px rgb(219 68 30 / 0.35), 0 8px 32px -10px rgb(219 68 30 / 0.38);
+  --shadow-glow: 0 0 0 1px rgb(179 204 51 / 0.35), 0 8px 32px -10px rgb(179 204 51 / 0.38);
 
   /* Flat, single-hue "gradients" — kept as linear-gradient() (some consumers set
      them via `background-image`, which requires an image value, not a plain
@@ -189,32 +202,32 @@
   --color-text-subtle: var(--slate-400);
   --color-text-inverse: #ffffff;
 
-  --color-primary: var(--burntpeach-400);
-  --color-primary-hover: var(--burntpeach-300);
-  --color-primary-soft: rgb(219 68 30 / 0.1);
-  --color-primary-fg: #ffffff;
-  --color-primary-on-soft: var(--burntpeach-400);
+  --color-primary: var(--pear-500);
+  --color-primary-hover: var(--pear-400);
+  --color-primary-soft: rgb(179 204 51 / 0.16);
+  --color-primary-fg: #141807;
+  --color-primary-on-soft: var(--pear-300);
 
-  --color-accent: var(--burntpeach-400);
-  --color-accent-soft: rgb(219 68 30 / 0.1);
-  --color-accent-fg: #ffffff;
+  --color-accent: var(--gold-500);
+  --color-accent-soft: rgb(245 197 24 / 0.16);
+  --color-accent-fg: #1c1600;
 
-  --color-success: var(--burntpeach-400);
-  --color-success-soft: var(--burntpeach-900);
-  --color-success-fg: var(--burntpeach-200);
+  --color-success: var(--pear-400);
+  --color-success-soft: var(--pear-900);
+  --color-success-fg: var(--pear-200);
 
-  --color-warning: var(--burntpeach-300);
-  --color-warning-soft: var(--burntpeach-900);
-  --color-warning-fg: var(--burntpeach-200);
+  --color-warning: var(--gold-400);
+  --color-warning-soft: var(--gold-900);
+  --color-warning-fg: var(--gold-200);
 
-  --color-danger: var(--burntpeach-200);
-  --color-danger-hover: var(--burntpeach-100);
-  --color-danger-soft: var(--burntpeach-900);
-  --color-danger-fg: var(--burntpeach-200);
+  --color-danger: var(--gold-400);
+  --color-danger-hover: var(--gold-300);
+  --color-danger-soft: var(--gold-900);
+  --color-danger-fg: var(--gold-200);
 
-  --color-focus: var(--burntpeach-400);
-  --color-overlay: rgb(55 17 7 / 0.4);
-  --color-skeleton: rgb(55 17 7 / 0.06);
+  --color-focus: var(--pear-500);
+  --color-overlay: rgb(24 30 8 / 0.4);
+  --color-skeleton: rgb(24 30 8 / 0.06);
 
   --glass-bg: rgb(255 255 255 / 0.85);
   --glass-bg-strong: rgb(255 255 255 / 0.95);
@@ -222,13 +235,13 @@
 
   /* Soft, diffuse, multi-layer card shadow — the premium "floating white card"
      look: a faint contact edge plus a wide, low-opacity ambient spread. */
-  --shadow-sm: 0 1px 2px rgb(55 17 7 / 0.05), 0 1px 1px rgb(55 17 7 / 0.03);
-  --shadow-md: 0 2px 4px rgb(55 17 7 / 0.04), 0 12px 28px -8px rgb(55 17 7 / 0.12);
-  --shadow-lg: 0 4px 8px rgb(55 17 7 / 0.05), 0 28px 60px -18px rgb(55 17 7 / 0.2);
-  --shadow-glass: 0 8px 28px -12px rgb(55 17 7 / 0.14), inset 0 1px 0 rgb(255 255 255 / 0.6);
-  --shadow-glow: 0 0 0 1px rgb(219 68 30 / 0.22), 0 10px 32px -12px rgb(219 68 30 / 0.24);
+  --shadow-sm: 0 1px 2px rgb(24 30 8 / 0.05), 0 1px 1px rgb(24 30 8 / 0.03);
+  --shadow-md: 0 2px 4px rgb(24 30 8 / 0.04), 0 12px 28px -8px rgb(24 30 8 / 0.12);
+  --shadow-lg: 0 4px 8px rgb(24 30 8 / 0.05), 0 28px 60px -18px rgb(24 30 8 / 0.2);
+  --shadow-glass: 0 8px 28px -12px rgb(24 30 8 / 0.14), inset 0 1px 0 rgb(255 255 255 / 0.6);
+  --shadow-glow: 0 0 0 1px rgb(179 204 51 / 0.22), 0 10px 32px -12px rgb(179 204 51 / 0.24);
 
-  --gradient-surface: linear-gradient(180deg, rgb(55 17 7 / 0.015), rgb(55 17 7 / 0));
+  --gradient-surface: linear-gradient(180deg, rgb(24 30 8 / 0.015), rgb(24 30 8 / 0));
 }
 
 @layer base {
@@ -314,11 +327,11 @@
     --color-text-subtle: #8b90a2;
     --color-border: rgb(255 255 255 / 0.1);
     --color-border-strong: rgb(255 255 255 / 0.18);
-    --color-primary: var(--burntpeach-500);
-    --color-primary-hover: var(--burntpeach-600);
-    --color-primary-fg: #ffffff;
-    --color-danger: var(--burntpeach-400);
-    --color-focus: var(--burntpeach-600);
+    --color-primary: var(--pear-500);
+    --color-primary-hover: var(--pear-600);
+    --color-primary-fg: #141807;
+    --color-danger: var(--gold-400);
+    --color-focus: var(--pear-500);
   }
 
   /* Solid elevated panel — replaces the old frosted-glass look with an opaque
@@ -412,32 +425,32 @@
   --color-text-subtle: var(--slate-400);
   --color-text-inverse: #ffffff;
 
-  --color-primary: var(--burntpeach-400);
-  --color-primary-hover: var(--burntpeach-300);
-  --color-primary-soft: rgb(219 68 30 / 0.1);
-  --color-primary-fg: #ffffff;
-  --color-primary-on-soft: var(--burntpeach-400);
+  --color-primary: var(--pear-500);
+  --color-primary-hover: var(--pear-400);
+  --color-primary-soft: rgb(179 204 51 / 0.16);
+  --color-primary-fg: #141807;
+  --color-primary-on-soft: var(--pear-300);
 
-  --color-accent: var(--burntpeach-400);
-  --color-accent-soft: rgb(219 68 30 / 0.1);
-  --color-accent-fg: #ffffff;
+  --color-accent: var(--gold-500);
+  --color-accent-soft: rgb(245 197 24 / 0.16);
+  --color-accent-fg: #1c1600;
 
-  --color-success: var(--burntpeach-400);
-  --color-success-soft: var(--burntpeach-900);
-  --color-success-fg: var(--burntpeach-200);
+  --color-success: var(--pear-400);
+  --color-success-soft: var(--pear-900);
+  --color-success-fg: var(--pear-200);
 
-  --color-warning: var(--burntpeach-300);
-  --color-warning-soft: var(--burntpeach-900);
-  --color-warning-fg: var(--burntpeach-200);
+  --color-warning: var(--gold-400);
+  --color-warning-soft: var(--gold-900);
+  --color-warning-fg: var(--gold-200);
 
-  --color-danger: var(--burntpeach-200);
-  --color-danger-hover: var(--burntpeach-100);
-  --color-danger-soft: var(--burntpeach-900);
-  --color-danger-fg: var(--burntpeach-200);
+  --color-danger: var(--gold-400);
+  --color-danger-hover: var(--gold-300);
+  --color-danger-soft: var(--gold-900);
+  --color-danger-fg: var(--gold-200);
 
-  --color-focus: var(--burntpeach-400);
-  --color-overlay: rgb(55 17 7 / 0.4);
-  --color-skeleton: rgb(55 17 7 / 0.06);
+  --color-focus: var(--pear-500);
+  --color-overlay: rgb(24 30 8 / 0.4);
+  --color-skeleton: rgb(24 30 8 / 0.06);
 
   --glass-bg: rgb(255 255 255 / 0.85);
   --glass-bg-strong: rgb(255 255 255 / 0.95);

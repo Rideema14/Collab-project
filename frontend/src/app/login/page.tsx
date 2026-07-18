@@ -22,7 +22,7 @@ export default function KuberyaLoginPage() {
   };
 
   return (
-    <main className="relative min-h-dvh w-full overflow-hidden bg-[#e76f51] font-sans text-[#ffffff]">
+    <main className="relative min-h-dvh w-full overflow-hidden bg-[#b3cc33] font-sans text-[#141807]">
       {/* faint diagonal ray lines across the whole canvas */}
       <div
         aria-hidden="true"
@@ -44,7 +44,7 @@ export default function KuberyaLoginPage() {
           <BrandMark />
           <button
             onClick={() => openModal('signin')}
-            className="rounded-full border border-[#ffffff]/25 bg-[#ffffff]/10 px-6 py-2.5 text-xs font-bold text-[#ffffff] backdrop-blur-md transition-all hover:bg-[#ffffff]/20"
+            className="rounded-full border border-[#141807]/25 bg-[#141807]/10 px-6 py-2.5 text-xs font-bold text-[#141807] backdrop-blur-md transition-all hover:bg-[#141807]/20"
           >
             Login
           </button>
@@ -78,7 +78,7 @@ export default function KuberyaLoginPage() {
             <div className="mt-10 flex items-center gap-4">
               <button
                 onClick={() => openModal('signup')}
-                className="rounded-full bg-[#ffffff] px-8 py-3.5 text-sm font-extrabold text-[#e76f51] shadow-[0_16px_32px_-10px_rgba(0,0,0,0.35)] transition-all hover:scale-105"
+                className="rounded-full bg-[#ffffff] px-8 py-3.5 text-sm font-extrabold text-[#5f7216] shadow-[0_16px_32px_-10px_rgba(0,0,0,0.35)] transition-all hover:scale-105"
               >
                 Start Free
               </button>
@@ -88,13 +88,13 @@ export default function KuberyaLoginPage() {
           {/* Integration badges */}
           <div className="mt-2 flex items-center gap-3">
             <ToolBadge>
-              <Video size={18} color="#e76f51" strokeWidth={1.8} />
+              <Video size={18} color="#5f7216" strokeWidth={1.8} />
             </ToolBadge>
             <ToolBadge>
               <CalendarDays size={18} color="#0f1c22" strokeWidth={1.8} />
             </ToolBadge>
             <ToolBadge>
-              <MessageSquare size={18} color="#e76f51" strokeWidth={1.8} />
+              <MessageSquare size={18} color="#5f7216" strokeWidth={1.8} />
             </ToolBadge>
           </div>
         </div>
@@ -142,9 +142,9 @@ export default function KuberyaLoginPage() {
 
                     <div className="mt-auto flex items-center justify-between pt-6">
                       <p className="text-[10px] font-semibold text-[#9497a1]">
-                        Want to talk or get a live demo? <span className="text-[#e76f51]">Get in touch →</span>
+                        Want to talk or get a live demo? <span className="text-[#5f7216]">Get in touch →</span>
                       </p>
-                      <button className="rounded-full bg-[#e76f51] px-5 py-2 text-[11px] font-bold text-[#ffffff] shadow-sm">
+                      <button className="rounded-full bg-[#b3cc33] px-5 py-2 text-[11px] font-bold text-[#141807] shadow-sm">
                         Start for free
                       </button>
                     </div>
@@ -178,12 +178,12 @@ export default function KuberyaLoginPage() {
                       Start with a stunning homepage. Stay motivated without hurting your pocket.
                     </p>
 
-                    <button className="mt-3 w-fit rounded-full bg-[#e76f51] px-3.5 py-1.5 text-[9px] font-bold text-[#ffffff]">
+                    <button className="mt-3 w-fit rounded-full bg-[#b3cc33] px-3.5 py-1.5 text-[9px] font-bold text-[#141807]">
                       Start for free
                     </button>
 
                     <p className="mt-auto pb-2 text-[8px] font-semibold text-[#9497a1]">
-                      Want a live demo? <span className="text-[#e76f51]">Get in touch →</span>
+                      Want a live demo? <span className="text-[#5f7216]">Get in touch →</span>
                     </p>
                   </div>
                 </div>
@@ -217,8 +217,8 @@ function CubeGlyph({ stroke = '#ffffff', size = 20 }: { stroke?: string; size?: 
 function BrandMark() {
   return (
     <div className="flex items-center gap-2.5">
-      <CubeGlyph size={26} />
-      <span className="text-lg font-extrabold tracking-tight text-[#ffffff]">Kuberya</span>
+      <CubeGlyph size={26} stroke="#141807" />
+      <span className="text-lg font-extrabold tracking-tight text-[#141807]">Kuberya</span>
     </div>
   );
 }
@@ -248,12 +248,12 @@ function ConnectorLines({ variant }: { variant: 'laptop' | 'phone' }) {
     variant === 'laptop'
       ? [
           { x: 68, y: 28, size: 34, bg: '#0f1c22', Icon: Flag },
-          { x: 86, y: 46, size: 46, bg: '#e76f51', Icon: Box },
+          { x: 86, y: 46, size: 46, bg: '#5f7216', Icon: Box },
           { x: 64, y: 64, size: 28, bg: '#0f1c22', Icon: MessageSquare },
         ]
       : [
           { x: 22, y: 66, size: 22, bg: '#0f1c22', Icon: Flag },
-          { x: 46, y: 76, size: 28, bg: '#e76f51', Icon: Box },
+          { x: 46, y: 76, size: 28, bg: '#5f7216', Icon: Box },
           { x: 70, y: 66, size: 20, bg: '#0f1c22', Icon: CalendarDays },
         ];
 
@@ -264,11 +264,11 @@ function ConnectorLines({ variant }: { variant: 'laptop' | 'phone' }) {
       <svg aria-hidden="true" className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         {nodes.map((n, i) =>
           nodes.slice(i + 1).map((m, j) => (
-            <line key={`${i}-${j}`} x1={n.x} y1={n.y} x2={m.x} y2={m.y} stroke="#e76f51" strokeWidth="0.25" strokeOpacity="0.35" />
+            <line key={`${i}-${j}`} x1={n.x} y1={n.y} x2={m.x} y2={m.y} stroke="#5f7216" strokeWidth="0.25" strokeOpacity="0.35" />
           ))
         )}
         {nodes.map((n, i) => (
-          <line key={`edge-${i}`} x1={n.x} y1={n.y} x2="100" y2={Math.max(0, n.y - 12)} stroke="#e76f51" strokeWidth="0.2" strokeOpacity="0.22" />
+          <line key={`edge-${i}`} x1={n.x} y1={n.y} x2="100" y2={Math.max(0, n.y - 12)} stroke="#5f7216" strokeWidth="0.2" strokeOpacity="0.22" />
         ))}
       </svg>
       {nodes.map((n, i) => (
@@ -359,7 +359,7 @@ function AuthModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-xl border border-[#e5e6ec] bg-[#fafafc] px-3.5 py-2.5 text-sm text-[#0f1c22] placeholder-[#a2a5b3] transition-all focus:border-[#e76f51] focus:outline-none"
+              className="w-full rounded-xl border border-[#e5e6ec] bg-[#fafafc] px-3.5 py-2.5 text-sm text-[#0f1c22] placeholder-[#a2a5b3] transition-all focus:border-[#5f7216] focus:outline-none"
             />
           </div>
 
@@ -367,7 +367,7 @@ function AuthModal({
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold uppercase tracking-wider text-[#6b6f80]">Password</label>
               {isLogin && (
-                <a href="#" className="text-xs font-semibold text-[#e76f51] hover:underline">
+                <a href="#" className="text-xs font-semibold text-[#5f7216] hover:underline">
                   Forgot?
                 </a>
               )}
@@ -378,12 +378,12 @@ function AuthModal({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-xl border border-[#e5e6ec] bg-[#fafafc] px-3.5 py-2.5 text-sm text-[#0f1c22] placeholder-[#a2a5b3] transition-all focus:border-[#e76f51] focus:outline-none"
+              className="w-full rounded-xl border border-[#e5e6ec] bg-[#fafafc] px-3.5 py-2.5 text-sm text-[#0f1c22] placeholder-[#a2a5b3] transition-all focus:border-[#5f7216] focus:outline-none"
             />
           </div>
 
           {error && (
-            <p role="alert" className="rounded-lg border border-[#e76f51]/25 bg-[#e76f51]/8 px-3 py-2 text-xs text-[#6e220f]">
+            <p role="alert" className="rounded-lg border border-[#c39516]/30 bg-[#f5c518]/15 px-3 py-2 text-xs text-[#5c470a]">
               {error}
             </p>
           )}
@@ -391,7 +391,7 @@ function AuthModal({
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 w-full rounded-xl bg-[#e76f51] py-2.5 text-sm font-bold text-[#ffffff] transition-all hover:bg-[#ec8b73] active:scale-[0.99] disabled:opacity-50"
+            className="mt-2 w-full rounded-xl bg-[#b3cc33] py-2.5 text-sm font-bold text-[#141807] transition-all hover:bg-[#a8be22] active:scale-[0.99] disabled:opacity-50"
           >
             {isLoading ? 'Please wait...' : isLogin ? 'Sign In' : 'Sign Up'}
           </button>
@@ -401,7 +401,7 @@ function AuthModal({
           {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
           <button
             onClick={() => setMode(isLogin ? 'signup' : 'signin')}
-            className="font-bold text-[#e76f51] hover:underline focus:outline-none"
+            className="font-bold text-[#5f7216] hover:underline focus:outline-none"
           >
             {isLogin ? 'Sign up free' : 'Sign in'}
           </button>
