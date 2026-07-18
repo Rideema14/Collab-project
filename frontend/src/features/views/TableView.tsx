@@ -1,8 +1,11 @@
 'use client';
 
+import { useState, type FormEvent } from 'react';
+import { Plus, X } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { openTask } from '@/store/slices/uiSlice';
 import { selectFieldsForList, selectFieldValues, selectTags } from '@/store/selectors';
+import { addField, removeField, type CustomFieldType } from '@/store/slices/customFieldsSlice';
 import { formatDueDate } from '@/lib/format';
 import { cn } from '@/lib/design/cn';
 import { PRIORITY_META } from '@/lib/domain/defaults';
@@ -12,9 +15,20 @@ import { Avatar } from '@/components/domain/AvatarStack';
 import { StatusChip } from '@/components/domain/StatusChip';
 import { PriorityFlag } from '@/components/domain/PriorityFlag';
 import { TagChip } from '@/components/domain/TagChip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
 import { useListData, groupTasksBy } from '@/features/list/useListData';
 
 const COLUMNS = ['Task', 'Status', 'Assignee', 'Due', 'Priority', 'Tags', 'Progress'] as const;
+
+/** Column types offered when adding a custom column. */
+const FIELD_TYPES: [CustomFieldType, string][] = [
+  ['text', 'Text'],
+  ['number', 'Number'],
+  ['date', 'Date'],
+  ['checkbox', 'Checkbox'],
+  ['money', 'Money'],
+  ['rating', 'Rating'],
+];
 
 /** Spreadsheet view — every field, plus this list's custom fields, in one grid. Sectioned by the toolbar's Group selector. */
 export function TableView({ listId }: { listId: string }) {
@@ -22,7 +36,8 @@ export function TableView({ listId }: { listId: string }) {
   const dispatch = useAppDispatch();
   const tags = useAppSelector(selectTags);
   const fields = useAppSelector(selectFieldsForList(listId));
-  const colCount = COLUMNS.length + fields.length;
+  // +1 for the trailing "add column" cell so group-header colSpan lines up.
+  const colCount = COLUMNS.length + fields.length + 1;
 
   const sorted = allTasks
     .slice()
@@ -54,10 +69,23 @@ export function TableView({ listId }: { listId: string }) {
                 </th>
               ))}
               {fields.map((f) => (
-                <th key={f.id} className="px-3 py-2 font-medium">
-                  {f.name}
+                <th key={f.id} className="group px-3 py-2 font-medium">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="truncate">{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => dispatch(removeField(f.id))}
+                      aria-label={`Delete ${f.name} column`}
+                      className="grid h-4 w-4 shrink-0 place-items-center rounded text-text-subtle opacity-0 transition-opacity hover:bg-danger-soft hover:text-danger group-hover:opacity-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
                 </th>
               ))}
+              <th className="w-10 px-2 py-2 text-right">
+                <AddColumnButton listId={listId} />
+              </th>
             </tr>
           </thead>
           <tbody className={cn('divide-y divide-border', prefs.density === 'compact' && '[&_td]:py-1.5')}>
@@ -138,7 +166,73 @@ function TableRow({
           {renderFieldValue(f, values[f.id] ?? null)}
         </td>
       ))}
+      {/* spacer under the "add column" header */}
+      <td className="px-2 py-2" aria-hidden />
     </tr>
+  );
+}
+
+/** Header control: pops a tiny form to add a new custom column (name + type). */
+function AddColumnButton({ listId }: { listId: string }) {
+  const dispatch = useAppDispatch();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [type, setType] = useState<CustomFieldType>('text');
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const clean = name.trim();
+    if (!clean) return;
+    dispatch(addField({ listId, name: clean, type }));
+    setName('');
+    setType('text');
+    setOpen(false);
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Add column"
+          className="grid h-6 w-6 place-items-center rounded-md border border-border text-text-subtle transition-colors hover:bg-surface-muted hover:text-text"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-60">
+        <form onSubmit={submit} className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-text">New column</p>
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Column name…"
+            className="h-8 rounded-md border border-border bg-surface px-2 text-sm text-text outline-none focus:border-primary"
+          />
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as CustomFieldType)}
+            aria-label="Column type"
+            className="h-8 rounded-md border border-border bg-surface px-2 text-sm text-text"
+          >
+            {FIELD_TYPES.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={!name.trim()}
+            className="h-8 rounded-md bg-primary text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover disabled:opacity-50"
+          >
+            Add column
+          </button>
+        </form>
+      </PopoverContent>
+    </Popover>
   );
 }
 

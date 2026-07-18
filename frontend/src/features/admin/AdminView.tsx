@@ -349,11 +349,15 @@ function TeamsTab() {
         </button>
       </form>
       <div className="space-y-3">
-        {teams.map((t) => (
+        {teams.map((t) => {
+          // Never trust `members` to be present — a partial payload here would
+          // throw during render and take the whole Admin view down.
+          const members = t.members ?? [];
+          return (
           <div key={t.id} className="rounded-xl border border-border p-3">
             <div className="mb-2 flex items-center gap-2">
               <span className="font-medium text-text">{t.name}</span>
-              <span className="text-xs text-text-subtle">{t.members.length} members</span>
+              <span className="text-xs text-text-subtle">{members.length} members</span>
               <button
                 type="button"
                 onClick={() => deleteTeam(t.id).catch(() => notify('error', 'Failed to delete team'))}
@@ -365,7 +369,7 @@ function TeamsTab() {
             </div>
             <div className="flex flex-wrap gap-1.5">
               {users.map((u) => {
-                const on = t.members.some((m) => m.id === u.id);
+                const on = members.some((m) => m.id === u.id);
                 return (
                   <button
                     key={u.id}
@@ -386,7 +390,8 @@ function TeamsTab() {
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
         {teams.length === 0 && <p className="text-sm text-text-subtle">No teams yet.</p>}
       </div>
     </Section>
