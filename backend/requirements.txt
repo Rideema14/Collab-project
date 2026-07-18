@@ -1,0 +1,14 @@
+# --- FastAPI Orchestrator Dependencies ---
+fastapi
+uvicorn
+httpx
+pydantic
+
+# --- LiveKit Agent & AI Plugins ---
+livekit-agents
+livekit-plugins-openai     # Used for Groq routing
+livekit-plugins-deepgram
+livekit-plugins-sarvam
+
+# --- Utilities ---
+python-dotenv

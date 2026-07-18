@@ -35,7 +35,7 @@ function MeetingsOverview() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
         <span
-          className="grid h-9 w-9 place-items-center rounded-xl text-white shadow-glow"
+          className="grid h-9 w-9 place-items-center rounded-xl text-primary-fg shadow-glow"
           style={{ background: 'var(--gradient-brand)' }}
         >
           <CalendarClock className="h-5 w-5" />

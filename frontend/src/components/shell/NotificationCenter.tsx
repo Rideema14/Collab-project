@@ -43,15 +43,15 @@ export function NotificationCenter() {
         aria-expanded={open}
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
         className={clsx(
-          'relative grid h-9 w-9 place-items-center rounded-xl text-text-muted transition-colors hover:bg-glass-border hover:text-text',
-          open && 'bg-glass-border text-text'
+          'relative grid h-9 w-9 place-items-center rounded-btn text-text-muted transition-colors hover:bg-surface-muted hover:text-text',
+          open && 'bg-surface-muted text-text'
         )}
       >
         <Bell className="h-[18px] w-[18px]" />
         {unread > 0 && (
           <span
             aria-hidden="true"
-            className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-gradient-to-br from-[#fb7185] to-[#f43f5e] px-1 text-[10px] font-bold leading-none text-white shadow-[0_0_0_2px_var(--color-bg)]"
+            className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-primary-fg shadow-[0_0_0_2px_var(--color-bg)]"
           >
             {unread > 9 ? '9+' : unread}
           </span>

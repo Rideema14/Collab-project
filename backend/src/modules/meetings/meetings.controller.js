@@ -89,6 +89,12 @@ const getDeployment = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result });
 });
 
+const getResult = asyncHandler(async (req, res) => {
+  const { meetingId } = req.params;
+  const result = await service.getMeetingResult(meetingId);
+  res.json({ success: true, data: result });
+});
+
 module.exports = {
   createMeeting,
   listMeetings,
@@ -102,4 +108,5 @@ module.exports = {
   previewContext,
   deployMeeting,
   getDeployment,
+  getResult,
 };

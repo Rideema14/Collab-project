@@ -1,5 +1,13 @@
 node_modules/
+
+# Next build output. Matches `.next*` rather than just `.next/` because
+# next.config.mjs honours NEXT_DIST_DIR (e.g. NEXT_DIST_DIR=.next-prod), so the
+# output lands in a differently-named folder each time that is used. Those dirs
+# hold ~60MB webpack cache packs — past GitHub's 50MB warning — and must never
+# be committed.
 .next/
+.next*/
+
 out/
 build/
 .env

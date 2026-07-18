@@ -66,5 +66,11 @@ router.get(
   requirePermission('meeting.read', requirePermission.meetingOrg('meetingId')),
   controller.getDeployment
 );
+router.get(
+  '/:meetingId/result',
+  validateIdParam('meetingId'),
+  requirePermission('meeting.read', requirePermission.meetingOrg('meetingId')),
+  controller.getResult
+);
 
 module.exports = router;

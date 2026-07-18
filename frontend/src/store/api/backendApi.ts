@@ -23,6 +23,7 @@ import type {
   MeetingContextPackage,
   MeetingContextPayload,
   MeetingDeployment,
+  MeetingResult,
   OrgRole,
   OrgSettings,
   Project,
@@ -260,11 +261,19 @@ export const backendApi = createApi({
       invalidatesTags: (_r, _e, meetingId) => [
         { type: 'Meetings', id: meetingId },
         { type: 'Meetings', id: 'LIST' },
+        // Refresh the deployment badge/button state right after deploying.
+        { type: 'Meetings', id: `deploy-${meetingId}` },
       ],
     }),
     getMeetingDeployment: build.query<MeetingDeployment, number>({
       query: (meetingId) => () => meetingsApi.getDeployment(meetingId),
       providesTags: (_r, _e, meetingId) => [{ type: 'Meetings', id: `deploy-${meetingId}` }],
+    }),
+    // Polled by the detail page while a deployed meeting is still running (the
+    // component sets pollingInterval and stops once `ended` flips true).
+    getMeetingResult: build.query<MeetingResult, number>({
+      query: (meetingId) => () => meetingsApi.getResult(meetingId),
+      providesTags: (_r, _e, meetingId) => [{ type: 'Meetings', id: `result-${meetingId}` }],
     }),
 
     // ---- Teams ----
@@ -373,6 +382,7 @@ export const {
   usePreviewMeetingContextMutation,
   useDeployMeetingMutation,
   useGetMeetingDeploymentQuery,
+  useGetMeetingResultQuery,
   useGetTeamsQuery,
   useCreateTeamMutation,
   useRenameTeamMutation,

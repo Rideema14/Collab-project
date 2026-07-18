@@ -2,6 +2,8 @@ const { ApiError } = require('../../utils/ApiError');
 const { logAudit } = require('../../utils/auditLog');
 const repository = require('./meetings.repository');
 const mailer = require('../../utils/email');
+const botClient = require('./meetings.botClient');
+const summarizer = require('./meetings.summarizer');
 
 const MEETING_TYPES = ['Daily Standup', 'Weekly Review', 'Sprint Review', 'Custom'];
 
@@ -571,11 +573,11 @@ async function getContext(id) {
 }
 
 /**
- * Marks a meeting as deployed to the external Meeting Bot: builds a fresh
- * context snapshot, stores it (separately from meeting_context_packages, which
- * keeps updating on every "Regenerate" — this snapshot is frozen at the moment
- * of deploy), and stamps meetings.deployed_at. This is ONLY the API contract —
- * nothing here actually calls an external bot yet.
+ * Deploys a meeting to the external Meeting Bot: builds a fresh context
+ * snapshot, stores it (separately from meeting_context_packages, which keeps
+ * updating on every "Regenerate" — this snapshot is frozen at the moment of
+ * deploy), sends it to the bot service so it actually joins the call, and stamps
+ * meetings.deployed_at.
  */
 async function deployMeeting(id, actorId) {
   const meetingRow = await repository.findById(id);
@@ -583,10 +585,26 @@ async function deployMeeting(id, actorId) {
   if (meetingRow.status === 'cancelled') {
     throw new ApiError(400, 'Cannot deploy a cancelled meeting');
   }
+  if (meetingRow.status === 'completed') {
+    throw new ApiError(400, 'This meeting has already been completed');
+  }
+  // Checked here rather than letting the bot reject it, so the failure names the
+  // thing the admin has to fix instead of surfacing as a 502 from another service.
+  if (!meetingRow.meeting_url) {
+    throw new ApiError(400, 'This meeting has no meeting link — add one before deploying the bot.');
+  }
 
   const payload = await buildContextPackage(meetingRow);
   await repository.upsertContextPackage(id, payload);
   const deployment = await repository.upsertDeployment(id, payload);
+
+  // Actually put the bot in the call, BEFORE stamping deployed_at. If the bot
+  // service is down or rejects the job this throws, leaving the meeting honestly
+  // un-deployed — getDeploymentStatus reads meetings.deployed_at, so the UI keeps
+  // showing "Not deployed" rather than claiming a bot that never joined. The
+  // frozen snapshot above is harmless to keep: it is overwritten on the retry.
+  await botClient.deployBot(id, deployment.context);
+
   await repository.markDeployed(id, deployment.deployed_at);
   if (meetingRow.status === 'scheduled') {
     await repository.updateStatus(id, 'context_ready');
@@ -596,6 +614,85 @@ async function deployMeeting(id, actorId) {
   );
 
   return { deployed: true, deployedAt: deployment.deployed_at, context: deployment.context };
+}
+
+function shapeResult({ ended, summary, transcript, endedAt }) {
+  const transcriptText = transcript || '';
+  return {
+    ended,
+    summary: summary || null,
+    transcript: transcript || null,
+    // "Who took part" is derived from the transcript's distinct speakers —
+    // attendance is never reported to us (see meetings.summarizer). Empty until
+    // the meeting has ended and produced a transcript.
+    speakers: ended ? summarizer.extractSpeakers(transcriptText) : [],
+    endedAt: endedAt || null,
+  };
+}
+
+/**
+ * Transcript + AI summary for a finished meeting, for the detail page.
+ *
+ * The external Meeting Bot produces the summary (server.py summarizes the
+ * transcript when the call ends) and keeps it only in memory, so we persist a
+ * copy the first time it reports the meeting ended and serve that copy from
+ * then on:
+ *   - If we already stored a result, return it — no bot round-trip, and it
+ *     survives a bot-service restart.
+ *   - Otherwise ask the bot. Until the call ends it answers {ended: false},
+ *     which we pass straight through so the UI can keep polling. Once it
+ *     reports ended, we summarize (falling back to our own Groq call if the bot
+ *     returned only a transcript), upsert, flip the meeting to 'completed', and
+ *     return the stored row.
+ *
+ * Always resolves (getResult on the bot client is best-effort and never
+ * throws), so a detail page can render even when the bot service is down.
+ */
+async function getMeetingResult(id) {
+  const meetingRow = await repository.findById(id);
+  if (!meetingRow) throw new ApiError(404, 'Meeting not found');
+
+  const stored = await repository.getResult(id);
+  if (stored) {
+    return shapeResult({
+      ended: true,
+      summary: stored.summary,
+      transcript: stored.transcript,
+      endedAt: stored.ended_at,
+    });
+  }
+
+  const result = await botClient.getResult(id);
+  if (!result.ended) {
+    return shapeResult({ ended: false });
+  }
+
+  const transcript = result.transcript || '';
+  // Prefer the bot's own summary; fall back to a Node-side Groq summary when the
+  // bot returned a transcript but no summary. Both are best-effort — a null
+  // summary just means the UI shows the transcript alone.
+  let summary = (result.summary || '').trim();
+  if (!summary && transcript.trim()) {
+    summary = await summarizer.summarizeTranscript(transcript);
+  }
+
+  const saved = await repository.upsertResult(id, {
+    summary: summary || null,
+    transcript: transcript || null,
+  });
+  // The meeting is over — reflect it in status so the list and detail views read
+  // 'Completed' instead of staying on 'Context ready'. Never override a
+  // cancellation.
+  if (meetingRow.status !== 'cancelled' && meetingRow.status !== 'completed') {
+    await repository.updateStatus(id, 'completed');
+  }
+
+  return shapeResult({
+    ended: true,
+    summary: saved.summary,
+    transcript: saved.transcript,
+    endedAt: saved.ended_at,
+  });
 }
 
 async function getDeploymentStatus(id) {
@@ -623,4 +720,5 @@ module.exports = {
   previewContext,
   deployMeeting,
   getDeploymentStatus,
+  getMeetingResult,
 };

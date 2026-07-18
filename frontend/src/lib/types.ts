@@ -126,7 +126,7 @@ export interface AiPlan {
 export const MEETING_TYPES = ['Daily Standup', 'Weekly Review', 'Sprint Review', 'Custom'] as const;
 export type MeetingType = (typeof MEETING_TYPES)[number];
 
-export type MeetingStatus = 'scheduled' | 'context_ready' | 'cancelled';
+export type MeetingStatus = 'scheduled' | 'context_ready' | 'completed' | 'cancelled';
 
 /**
  * `sent` (provider accepted the request) is the highest state this app can
@@ -240,6 +240,22 @@ export interface MeetingDeployment {
   deployed: boolean;
   deployedAt: string | null;
   context: MeetingBotContext | null;
+}
+
+/**
+ * GET /api/meetings/:meetingId/result — the transcript + AI summary the Meeting
+ * Bot produced once the call ended. `ended` is false (and the rest null) until
+ * the meeting finishes, so the detail page polls until it flips true.
+ */
+export interface MeetingResult {
+  ended: boolean;
+  /** Markdown summary produced by the bot (## Overview / Key Points / Decisions / Action Items), or null. */
+  summary: string | null;
+  /** Full speaker-labelled transcript text, or null. */
+  transcript: string | null;
+  /** Distinct human speakers heard in the transcript — the closest proxy to "who took part". */
+  speakers: string[];
+  endedAt: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ import type {
   MeetingContextPackage,
   MeetingContextPayload,
   MeetingDeployment,
+  MeetingResult,
   MeetingType,
   OrgRole,
   OrgSettings,
@@ -243,6 +244,14 @@ export const meetingsApi = {
   /** GET /api/meetings/:meetingId/deploy -> current deployment status + frozen snapshot, if any. */
   getDeployment: (meetingId: number, signal?: AbortSignal) =>
     api.get<MeetingDeployment>(`/api/meetings/${meetingId}/deploy`, signal),
+
+  /**
+   * GET /api/meetings/:meetingId/result -> transcript + AI summary once the
+   * meeting has ended. Returns `{ ended: false }` until then, so the caller
+   * polls. Proxied by the Node backend from the external Meeting Bot service.
+   */
+  getResult: (meetingId: number, signal?: AbortSignal) =>
+    api.get<MeetingResult>(`/api/meetings/${meetingId}/result`, signal),
 };
 
 // ---------- Teams (authenticated, member+ read / admin+ manage) ----------

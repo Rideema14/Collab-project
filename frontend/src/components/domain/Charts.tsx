@@ -1,11 +1,10 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useId } from 'react';
 import { cn } from '@/lib/design/cn';
 import { spring } from '@/lib/design/motion';
 
-/** A completion ring with the brand gradient stroke and an animated sweep. */
+/** A completion ring with a brand-orange stroke and an animated sweep. */
 export function Ring({
   percent,
   size = 128,
@@ -17,7 +16,6 @@ export function Ring({
   stroke?: number;
   children?: React.ReactNode;
 }) {
-  const id = useId();
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const filled = (Math.max(0, Math.min(100, percent)) / 100) * circ;
@@ -25,13 +23,6 @@ export function Ring({
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <defs>
-          <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--violet-500)" />
-            <stop offset="50%" stopColor="var(--indigo-500)" />
-            <stop offset="100%" stopColor="var(--cyan-400)" />
-          </linearGradient>
-        </defs>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-glass-border" />
         <motion.circle
           cx={size / 2}
@@ -40,7 +31,7 @@ export function Ring({
           fill="none"
           strokeWidth={stroke}
           strokeLinecap="round"
-          stroke={`url(#${id})`}
+          stroke="var(--color-primary)"
           initial={{ strokeDasharray: `0 ${circ}` }}
           animate={{ strokeDasharray: `${filled} ${circ}` }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}

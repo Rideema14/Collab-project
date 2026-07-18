@@ -107,7 +107,7 @@ export function AdminView() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
-        <span className="grid h-9 w-9 place-items-center rounded-xl text-white shadow-glow" style={{ background: 'var(--gradient-brand)' }}>
+        <span className="grid h-9 w-9 place-items-center rounded-xl text-primary-fg shadow-glow" style={{ background: 'var(--gradient-brand)' }}>
           <Shield className="h-5 w-5" />
         </span>
         <div>
@@ -125,7 +125,7 @@ export function AdminView() {
               onClick={() => setTab(t.id)}
               className={cn(
                 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                tab === t.id ? 'bg-primary-soft text-primary' : 'text-text-muted hover:bg-glass-border hover:text-text'
+                tab === t.id ? 'bg-primary-selected text-primary-on-selected' : 'text-text-muted hover:bg-surface-muted hover:text-text'
               )}
             >
               <t.icon className="h-4 w-4" /> {t.label}
@@ -170,7 +170,7 @@ function DashboardTab({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
         {tiles.map((t) => (
           <div key={t.label} className="rounded-xl border border-border bg-surface-muted/40 p-4">
             <p className="text-xs uppercase tracking-wide text-text-subtle">{t.label}</p>
-            <p className="mt-1 text-2xl font-semibold text-text">{t.value}</p>
+            <p className="mt-1 font-display text-2xl font-bold tracking-tight tabular-nums text-text">{t.value}</p>
           </div>
         ))}
       </div>
@@ -377,7 +377,7 @@ function TeamsTab() {
                     }
                     className={cn(
                       'flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition-colors',
-                      on ? 'border-primary bg-primary-soft text-primary' : 'border-border text-text-muted hover:bg-glass-border'
+                      on ? 'border-transparent bg-primary-selected text-primary-on-selected' : 'border-border text-text-muted hover:bg-surface-muted'
                     )}
                   >
                     <Avatar person={u} size={18} /> {u.name}
@@ -630,19 +630,19 @@ function AnalyticsTab() {
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-surface-muted/40 p-4">
           <p className="text-xs uppercase tracking-wide text-text-subtle">Total tasks</p>
-          <p className="mt-1 text-2xl font-semibold text-text">{data.total}</p>
+          <p className="mt-1 font-display text-2xl font-bold tracking-tight tabular-nums text-text">{data.total}</p>
         </div>
         <div className="rounded-xl border border-border bg-surface-muted/40 p-4">
           <p className="text-xs uppercase tracking-wide text-text-subtle">Completed</p>
-          <p className="mt-1 text-2xl font-semibold text-text">{data.completed}</p>
+          <p className="mt-1 font-display text-2xl font-bold tracking-tight tabular-nums text-text">{data.completed}</p>
         </div>
         <div className="rounded-xl border border-border bg-surface-muted/40 p-4">
           <p className="text-xs uppercase tracking-wide text-text-subtle">Completion rate</p>
-          <p className="mt-1 text-2xl font-semibold text-text">{data.completionRate}%</p>
+          <p className="mt-1 font-display text-2xl font-bold tracking-tight tabular-nums text-text">{data.completionRate}%</p>
         </div>
         <div className="rounded-xl border border-border bg-surface-muted/40 p-4">
           <p className="text-xs uppercase tracking-wide text-text-subtle">Overdue</p>
-          <p className="mt-1 text-2xl font-semibold text-danger">{data.overdue}</p>
+          <p className="mt-1 font-display text-2xl font-bold tracking-tight tabular-nums text-danger">{data.overdue}</p>
         </div>
       </div>
       <Table head={['Status', 'Count']}>

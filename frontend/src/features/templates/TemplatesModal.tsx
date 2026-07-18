@@ -36,7 +36,7 @@ export function TemplatesModal({ onClose }: { onClose: () => void }) {
               key={t}
               type="button"
               onClick={() => setTab(t)}
-              className={cn('rounded-lg px-3 py-1.5 text-sm font-medium', tab === t ? 'bg-primary-soft text-primary' : 'text-text-muted hover:bg-glass-border')}
+              className={cn('rounded-lg px-3 py-1.5 text-sm font-medium', tab === t ? 'bg-primary-selected text-primary-on-selected' : 'text-text-muted hover:bg-surface-muted')}
             >
               {t === 'task' ? 'Task templates' : 'Project templates'}
             </button>

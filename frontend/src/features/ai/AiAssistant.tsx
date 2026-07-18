@@ -129,7 +129,7 @@ export function AiAssistant({ onNavigate }: { onNavigate?: () => void }) {
         {messages.map((m) => (
           <div key={m.id} className={cn('flex gap-3 animate-fade-in', m.role === 'user' && 'flex-row-reverse')}>
             {m.role === 'assistant' && (
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white shadow-glow" style={{ background: 'var(--gradient-brand)' }}>
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-primary-fg shadow-glow" style={{ background: 'var(--gradient-brand)' }}>
                 <Sparkles className="h-4 w-4" />
               </span>
             )}
@@ -166,7 +166,7 @@ export function AiAssistant({ onNavigate }: { onNavigate?: () => void }) {
               <button
                 type="button"
                 onClick={confirmPending}
-                className="flex items-center gap-1.5 rounded-lg bg-danger px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                className="flex items-center gap-1.5 rounded-lg bg-danger px-3 py-1.5 text-sm font-medium text-primary-fg transition-opacity hover:opacity-90"
               >
                 <Check className="h-4 w-4" /> Confirm
               </button>
@@ -211,7 +211,7 @@ export function AiAssistant({ onNavigate }: { onNavigate?: () => void }) {
               className={cn(
                 'grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors',
                 mic.listening
-                  ? 'animate-pulse bg-danger text-white'
+                  ? 'animate-pulse bg-danger text-primary-fg'
                   : 'text-text-subtle hover:bg-glass-border hover:text-text'
               )}
             >
@@ -238,7 +238,7 @@ export function AiAssistant({ onNavigate }: { onNavigate?: () => void }) {
             onClick={() => void submit(draft)}
             disabled={!draft.trim() || busy}
             aria-label="Send"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-brand text-white shadow-glow transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-brand text-primary-fg shadow-glow transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>

@@ -1,0 +1,17 @@
+[project]
+name = "livekit-test"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.139.0",
+    "httpx>=0.28.1",
+    "livekit>=1.1.13",
+    "livekit-agents>=1.6.5",
+    "livekit-plugins-deepgram>=1.6.5",
+    "livekit-plugins-openai>=1.6.5",
+    "python-dotenv>=1.2.2",
+    "uvicorn>=0.51.0",
+    "websockets>=15.0.1",
+]

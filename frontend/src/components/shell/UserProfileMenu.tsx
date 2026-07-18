@@ -29,8 +29,8 @@ export function UserProfileMenu() {
         aria-expanded={open}
         aria-label={`Account menu for ${user.name}`}
         className={clsx(
-          'flex items-center gap-2 rounded-xl border border-transparent p-1 pr-2 transition-colors hover:border-glass-border hover:bg-glass-border',
-          open && 'border-glass-border bg-glass-border'
+          'flex items-center gap-2 rounded-btn border border-transparent p-1 pr-2 transition-colors hover:bg-surface-muted',
+          open && 'bg-surface-muted'
         )}
       >
         <Avatar name={user.name} />

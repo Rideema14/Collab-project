@@ -4,16 +4,19 @@ import { useState } from 'react';
 import {
   Activity,
   AlertTriangle,
+  
+  BarChart3,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
   FolderKanban,
+  LayoutGrid,
   ListTodo,
   Pencil,
   Plus,
   RotateCcw,
-  TrendingUp,
+  Target,
   User,
   X,
 } from 'lucide-react';
@@ -24,6 +27,8 @@ import { useAuth } from '@/lib/auth-context';
 import { relativeTime, formatDuration } from '@/lib/format';
 import { cn } from '@/lib/design/cn';
 import { Skeleton } from '@/components/ui/Misc';
+import { Button } from '@/components/ui/Button';
+import { FadeInUp, HoverCard, Stagger, StaggerItem } from '@/components/ui/Motion';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,20 +37,22 @@ import {
 } from '@/components/ui/DropdownMenu';
 import { Avatar } from '@/components/domain/AvatarStack';
 import { Ring, Sparkbars, Meter } from '@/components/domain/Charts';
+import { statusColors, DATAVIZ_HUES } from '@/lib/domain/status-color';
+import { useTheme } from '@/lib/theme-context';
 import { useWorkspaceStats, type WorkspaceStats } from './useWorkspaceStats';
 
-const WIDGET_META: Record<WidgetType, { title: string; span: 1 | 2 }> = {
-  kpi_projects: { title: 'Projects', span: 1 },
-  kpi_tasks: { title: 'Total tasks', span: 1 },
-  kpi_completed: { title: 'Completed', span: 1 },
-  kpi_overdue: { title: 'Overdue', span: 1 },
-  completion_ring: { title: 'Project health', span: 1 },
-  created_trend: { title: 'Created this week', span: 1 },
-  status_distribution: { title: 'Status distribution', span: 1 },
-  team_workload: { title: 'Team workload', span: 2 },
-  recent_activity: { title: 'Recent activity', span: 2 },
-  time_tracked: { title: 'Time tracked', span: 1 },
-  my_tasks: { title: 'My tasks', span: 1 },
+const WIDGET_META: Record<WidgetType, { title: string; span: 1 | 2 | 3 | 4; icon: any }> = {
+  kpi_projects: { title: 'Active Projects', span: 1, icon: FolderKanban },
+  kpi_tasks: { title: 'Total Tasks', span: 1, icon: ListTodo },
+  kpi_completed: { title: 'Completed', span: 1, icon: CheckCircle2 },
+  kpi_overdue: { title: 'Overdue', span: 1, icon: AlertTriangle },
+  completion_ring: { title: 'Completion', span: 2, icon: Target },
+  created_trend: { title: 'Tasks Created', span: 2, icon: Activity },
+  status_distribution: { title: 'Status Breakdown', span: 2, icon: ListTodo },
+  team_workload: { title: 'Team Workload', span: 4, icon: User },
+  recent_activity: { title: 'Recent Activity', span: 4, icon: Activity },
+  time_tracked: { title: 'Time Tracked', span: 1, icon: Clock },
+  my_tasks: { title: 'My Tasks', span: 1, icon: User },
 };
 
 const ALL_TYPES = Object.keys(WIDGET_META) as WidgetType[];
@@ -64,69 +71,103 @@ export function DashboardView() {
   const totalTime = timeEntries.reduce((s, e) => s + e.minutes, 0);
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="flex items-start justify-between gap-3">
+    <div className="h-full w-full overflow-y-auto bg-bg text-text antialiased">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-8 lg:px-12">
+        <FadeInUp className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="mb-1 flex items-center gap-2 text-sm text-text-subtle">
-              <span className="grid h-5 w-5 place-items-center rounded-md bg-gradient-brand text-[10px] text-white">◆</span>
-              Dashboard
-            </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-text">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
               {greeting}
               {user ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
-            <p className="mt-1 text-sm text-text-muted">Here&apos;s how work is moving across your workspace.</p>
+            <p className="mt-1.5 text-sm font-medium text-text-muted">
+              Here&rsquo;s an overview of your team&rsquo;s work.
+            </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
             {editing && (
-              <>
+              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
                 <AddWidgetMenu existing={widgets.map((w) => w.type)} onAdd={(t) => dispatch(addWidget(t))} />
                 <button
                   type="button"
                   onClick={() => dispatch(resetWidgets())}
-                  className="grid h-9 w-9 place-items-center rounded-xl text-text-muted transition-colors hover:bg-glass-border hover:text-text"
-                  aria-label="Reset widgets"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-text-muted shadow-sm transition-colors hover:bg-surface-muted hover:text-text"
+                  title="Reset to default layout"
                 >
                   <RotateCcw className="h-4 w-4" />
                 </button>
-              </>
+              </div>
             )}
+
             <button
               type="button"
               onClick={() => setEditing((v) => !v)}
               className={cn(
-                'inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition-colors',
-                editing ? 'bg-primary text-primary-fg' : 'border border-border text-text-muted hover:bg-glass-border hover:text-text'
+                'flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-colors active:scale-[0.98]',
+                editing
+                  ? 'bg-text text-bg hover:opacity-90'
+                  : 'border border-border bg-surface text-text shadow-sm hover:bg-surface-muted'
               )}
             >
-              <Pencil className="h-4 w-4" /> {editing ? 'Done' : 'Edit'}
+              <Pencil className={cn('h-4 w-4 transition-transform', editing && 'rotate-45')} />
+              {editing ? 'Save layout' : 'Customize board'}
             </button>
           </div>
-        </div>
+        </FadeInUp>
 
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {widgets.map((w, i) => (
-            <WidgetCard
-              key={w.id}
-              title={WIDGET_META[w.type].title}
-              span={WIDGET_META[w.type].span}
-              editing={editing}
-              canLeft={i > 0}
-              canRight={i < widgets.length - 1}
-              onMoveLeft={() => dispatch(moveWidget({ id: w.id, dir: -1 }))}
-              onMoveRight={() => dispatch(moveWidget({ id: w.id, dir: 1 }))}
-              onRemove={() => dispatch(removeWidget(w.id))}
-            >
-              <WidgetBody type={w.type} stats={stats} loading={loading} activity={activity} totalTime={totalTime} userName={user?.name} />
-            </WidgetCard>
-          ))}
+        <Stagger className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4" stagger={0.06}>
+          {widgets.map((w, i) => {
+            const meta = WIDGET_META[w.type];
+            return (
+              <StaggerItem
+                key={w.id}
+                className={cn(
+                  'h-full',
+                  meta.span === 2 && 'sm:col-span-2 lg:col-span-2',
+                  meta.span === 3 && 'sm:col-span-2 lg:col-span-3',
+                  meta.span === 4 && 'col-span-full'
+                )}
+              >
+                <WidgetCard
+                  title={meta.title}
+                  icon={meta.icon}
+                  editing={editing}
+                  canLeft={i > 0}
+                  canRight={i < widgets.length - 1}
+                  onMoveLeft={() => dispatch(moveWidget({ id: w.id, dir: -1 }))}
+                  onMoveRight={() => dispatch(moveWidget({ id: w.id, dir: 1 }))}
+                  onRemove={() => dispatch(removeWidget(w.id))}
+                >
+                  <WidgetBody
+                    type={w.type}
+                    stats={stats}
+                    loading={loading}
+                    activity={activity}
+                    totalTime={totalTime}
+                    userName={user?.name}
+                  />
+                </WidgetCard>
+              </StaggerItem>
+            );
+          })}
+
           {widgets.length === 0 && (
-            <p className="col-span-full py-16 text-center text-sm text-text-subtle">
-              No widgets. Click <strong>Edit</strong> → <strong>Add widget</strong>.
-            </p>
+            <StaggerItem className="col-span-full">
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border-strong py-20 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-soft">
+                  <LayoutGrid className="h-7 w-7 text-primary" />
+                </div>
+                <h3 className="text-base font-bold text-text">No widgets yet</h3>
+                <p className="mt-1 max-w-xs text-xs text-text-muted">
+                  Add widgets to build a dashboard that fits how your team works.
+                </p>
+                <Button variant="primary" size="md" className="mt-4" onClick={() => setEditing(true)}>
+                  Customize board
+                </Button>
+              </div>
+            </StaggerItem>
           )}
-        </div>
+        </Stagger>
       </div>
     </div>
   );
@@ -136,17 +177,32 @@ function AddWidgetMenu({ existing, onAdd }: { existing: WidgetType[]; onAdd: (t:
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border px-3 text-sm text-text-muted transition-colors hover:bg-glass-border hover:text-text">
-          <Plus className="h-4 w-4" /> Add widget
+        <button
+          type="button"
+          className="flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-bold text-text shadow-sm transition-colors hover:bg-surface-muted"
+        >
+          <Plus className="h-4 w-4 text-primary" /> Add widget
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-        {ALL_TYPES.map((t) => (
-          <DropdownMenuItem key={t} onSelect={() => onAdd(t)}>
-            {WIDGET_META[t].title}
-            {existing.includes(t) && <span className="ml-auto text-xs text-text-subtle">added</span>}
-          </DropdownMenuItem>
-        ))}
+      <DropdownMenuContent align="end" className="max-h-80 w-64 overflow-y-auto rounded-xl border border-border bg-surface p-1.5">
+        {ALL_TYPES.map((t) => {
+          const Icon = WIDGET_META[t].icon;
+          return (
+            <DropdownMenuItem
+              key={t}
+              onSelect={() => onAdd(t)}
+              className="flex cursor-pointer items-center gap-3.5 rounded-lg px-3 py-2 text-sm font-medium text-text transition-colors hover:bg-surface-muted"
+            >
+              <Icon className="h-4 w-4 text-text-subtle" />
+              <span className="flex-1 truncate">{WIDGET_META[t].title}</span>
+              {existing.includes(t) && (
+                <span className="rounded bg-surface-muted px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-text-subtle">
+                  Added
+                </span>
+              )}
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -154,7 +210,7 @@ function AddWidgetMenu({ existing, onAdd }: { existing: WidgetType[]; onAdd: (t:
 
 function WidgetCard({
   title,
-  span,
+  icon: Icon,
   editing,
   canLeft,
   canRight,
@@ -164,7 +220,7 @@ function WidgetCard({
   children,
 }: {
   title: string;
-  span: 1 | 2;
+  icon: any;
   editing: boolean;
   canLeft: boolean;
   canRight: boolean;
@@ -174,21 +230,45 @@ function WidgetCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn('relative rounded-2xl border border-glass-border bg-glass p-4 shadow-glass', span === 2 && 'lg:col-span-2')}>
-      {editing && (
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-lg border border-border bg-surface-raised/90 p-0.5 backdrop-blur">
-          <button type="button" onClick={onMoveLeft} disabled={!canLeft} className="grid h-6 w-6 place-items-center rounded text-text-subtle hover:bg-surface-muted disabled:opacity-30" aria-label="Move left"><ChevronLeft className="h-4 w-4" /></button>
-          <button type="button" onClick={onMoveRight} disabled={!canRight} className="grid h-6 w-6 place-items-center rounded text-text-subtle hover:bg-surface-muted disabled:opacity-30" aria-label="Move right"><ChevronRight className="h-4 w-4" /></button>
-          <button type="button" onClick={onRemove} className="grid h-6 w-6 place-items-center rounded text-text-subtle hover:bg-danger-soft hover:text-danger" aria-label="Remove"><X className="h-4 w-4" /></button>
+    <HoverCard lift={!editing} className="h-full">
+      <section
+        className={cn(
+          'group relative flex h-full flex-col justify-between rounded-2xl border border-border bg-surface p-5 shadow-sm transition-colors duration-200 hover:border-border-strong',
+          editing && 'ring-2 ring-dashed ring-border-strong scale-[0.99] select-none hover:ring-primary'
+        )}
+      >
+        {editing && (
+          <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-xl border border-border bg-surface/95 p-1 shadow-md backdrop-blur-md animate-in zoom-in-95 duration-150">
+            <button type="button" onClick={onMoveLeft} disabled={!canLeft} className="flex h-6 w-6 items-center justify-center rounded-lg text-text-muted hover:bg-surface-muted disabled:opacity-25" aria-label="Move left"><ChevronLeft className="h-4 w-4" /></button>
+            <button type="button" onClick={onMoveRight} disabled={!canRight} className="flex h-6 w-6 items-center justify-center rounded-lg text-text-muted hover:bg-surface-muted disabled:opacity-25" aria-label="Move right"><ChevronRight className="h-4 w-4" /></button>
+            <div className="mx-0.5 h-4 w-px bg-border" />
+            <button type="button" onClick={onRemove} className="flex h-6 w-6 items-center justify-center rounded-lg text-text-subtle hover:bg-danger-soft hover:text-danger" aria-label="Remove widget"><X className="h-4 w-4" /></button>
+          </div>
+        )}
+
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-text-subtle">{title}</p>
+            {!editing && Icon && (
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                <Icon className="h-3.5 w-3.5" />
+              </span>
+            )}
+          </div>
+          <div className="relative w-full">{children}</div>
         </div>
-      )}
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-text-subtle">{title}</p>
-      {children}
-    </section>
+      </section>
+    </HoverCard>
   );
 }
 
-const KPI_ICON = { kpi_projects: FolderKanban, kpi_tasks: ListTodo, kpi_completed: CheckCircle2, kpi_overdue: AlertTriangle } as const;
+/** Neutral counts (projects, tasks) get a solid brand tint; color is reserved for status that matters. */
+const KPI_TONES = {
+  kpi_projects: { icon: FolderKanban, color: 'text-text-muted', bg: 'bg-surface-muted', number: 'text-primary' },
+  kpi_tasks: { icon: ListTodo, color: 'text-text-muted', bg: 'bg-surface-muted', number: 'text-primary' },
+  kpi_completed: { icon: CheckCircle2, color: 'text-success-fg', bg: 'bg-success-soft', number: 'text-success-fg' },
+  kpi_overdue: { icon: AlertTriangle, color: 'text-danger-fg', bg: 'bg-danger-soft', number: 'text-danger-fg' },
+} as const;
 
 function WidgetBody({
   type,
@@ -205,19 +285,28 @@ function WidgetBody({
   totalTime: number;
   userName?: string;
 }) {
+  const { theme } = useTheme();
+
   if (type.startsWith('kpi_')) {
-    const map: Record<string, { value: number; tone: string }> = {
-      kpi_projects: { value: stats.totalProjects, tone: 'text-primary' },
-      kpi_tasks: { value: stats.totalTasks, tone: 'text-accent' },
-      kpi_completed: { value: stats.completed, tone: 'text-success' },
-      kpi_overdue: { value: stats.overdue, tone: stats.overdue > 0 ? 'text-danger' : 'text-text-muted' },
+    const context = KPI_TONES[type as keyof typeof KPI_TONES];
+    const valueMap: Record<string, number> = {
+      kpi_projects: stats.totalProjects,
+      kpi_tasks: stats.totalTasks,
+      kpi_completed: stats.completed,
+      kpi_overdue: stats.overdue,
     };
-    const Icon = KPI_ICON[type as keyof typeof KPI_ICON];
-    const d = map[type];
+    const finalValue = valueMap[type] ?? 0;
+
     return (
-      <div className="flex items-end justify-between">
-        {loading ? <Skeleton className="h-8 w-16" /> : <p className={cn('text-3xl font-semibold tabular-nums', d.tone)}>{d.value}</p>}
-        <Icon className={cn('h-5 w-5', d.tone)} />
+      <div className="flex items-center justify-between">
+        {loading ? (
+          <Skeleton className="h-9 w-20 rounded-lg" />
+        ) : (
+          <p className={cn('font-display text-4xl font-bold tracking-tight tabular-nums', context.number)}>{finalValue}</p>
+        )}
+        <div className={cn('flex h-12 w-12 items-center justify-center rounded-xl', context.bg)}>
+          <context.icon className={cn('h-6 w-6', context.color)} />
+        </div>
       </div>
     );
   }
@@ -225,91 +314,142 @@ function WidgetBody({
   switch (type) {
     case 'completion_ring':
       return (
-        <div className="flex items-center gap-4">
-          <Ring percent={stats.completionPct}>
-            <div className="text-center">
-              <p className="text-xl font-semibold text-text">{stats.completionPct}%</p>
-              <p className="text-[10px] uppercase tracking-wide text-text-subtle">done</p>
-            </div>
-          </Ring>
-          <div className="flex-1 space-y-1.5 text-sm">
-            <Row label="Active" value={stats.active} />
-            <Row label="Overdue" value={stats.overdue} tone={stats.overdue > 0 ? 'text-danger' : undefined} />
-            <Row label="Unassigned" value={stats.unassigned} />
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <div className="relative flex shrink-0 justify-center">
+            <Ring percent={stats.completionPct} size={100} stroke={8}>
+              <div className="text-center">
+                <p className="font-display text-2xl font-bold tracking-tight">{stats.completionPct}%</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-text-subtle">Complete</p>
+              </div>
+            </Ring>
+          </div>
+          <div className="flex-1 space-y-2.5">
+            <Row label="In progress" value={stats.active} statusColor="bg-primary" />
+            <Row label="Overdue" value={stats.overdue} tone={stats.overdue > 0 ? 'text-danger font-bold' : undefined} statusColor="bg-danger" />
+            <Row label="Unassigned" value={stats.unassigned} statusColor="bg-border-strong" />
           </div>
         </div>
       );
+
     case 'created_trend':
-      return loading ? <Skeleton className="h-24 w-full" /> : <Sparkbars data={stats.createdTrend} />;
+      return loading ? (
+        <Skeleton className="h-28 w-full rounded-xl" />
+      ) : (
+        <div className="pt-2">
+          <Sparkbars data={stats.createdTrend} />
+        </div>
+      );
+
     case 'status_distribution':
       return stats.byStatus.length === 0 ? (
         <Empty />
       ) : (
-        <div className="space-y-2">
-          {stats.byStatus.slice(0, 6).map((s) => (
-            <div key={s.name}>
-              <div className="mb-0.5 flex justify-between text-xs">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {stats.byStatus.slice(0, 6).map((s, idx) => (
+            <div
+              key={s.name}
+              className="rounded-xl border border-border bg-surface-muted/50 p-3 transition-colors duration-200 hover:border-border-strong"
+            >
+              <div className="mb-1.5 flex justify-between text-xs font-bold">
                 <span className="text-text-muted">{s.name}</span>
-                <span className="tabular-nums text-text-subtle">{s.count}</span>
+                <span className="tabular-nums">{s.count}</span>
               </div>
-              <Meter value={s.count} max={stats.totalTasks} />
+              <Meter
+                value={s.count}
+                max={stats.totalTasks}
+                className="h-2 rounded-full"
+                color={statusColors(DATAVIZ_HUES[idx % DATAVIZ_HUES.length], theme).solid}
+              />
             </div>
           ))}
         </div>
       );
+
     case 'team_workload':
       return stats.byAssignee.length === 0 ? (
         <Empty />
       ) : (
-        <ul className="space-y-2.5">
-          {stats.byAssignee.slice(0, 6).map((r) => {
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {stats.byAssignee.slice(0, 6).map((r, idx) => {
             const isUn = r.name === 'Unassigned';
             const max = stats.byAssignee[0]?.count ?? 1;
             return (
-              <li key={r.name} className="flex items-center gap-3">
-                {isUn ? (
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-glass-border text-xs text-text-subtle">?</span>
-                ) : (
-                  <Avatar person={{ id: hashId(r.name), name: r.name }} size={28} />
-                )}
-                <span className="w-28 shrink-0 truncate text-sm text-text">{r.name}</span>
-                <Meter value={r.count} max={max} className="flex-1" color={isUn ? 'var(--color-border-strong)' : 'var(--gradient-brand)'} />
-                <span className="w-14 shrink-0 text-right text-xs tabular-nums text-text-subtle">{r.done}/{r.count}</span>
-              </li>
+              <div
+                key={r.name}
+                className="flex items-center gap-3.5 rounded-xl border border-border p-3 transition-colors duration-200 hover:border-border-strong hover:bg-surface-muted/40"
+              >
+                <div className="relative shrink-0">
+                  {isUn ? (
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-xs font-black text-text-subtle">?</span>
+                  ) : (
+                    <Avatar person={{ id: hashId(r.name), name: r.name }} size={32} />
+                  )}
+                  {idx === 0 && !isUn && r.count > 0 && (
+                    <span
+                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] font-black text-primary-fg ring-2 ring-surface"
+                      title="Top contributor"
+                    >
+                      1
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex items-center justify-between text-xs font-bold">
+                    <span className="truncate text-text">{r.name}</span>
+                    <span className="tabular-nums text-text-muted">{r.done}/{r.count}</span>
+                  </div>
+                  <Meter
+                    value={r.count}
+                    max={max}
+                    color={isUn ? 'var(--color-text-subtle)' : statusColors(DATAVIZ_HUES[idx % DATAVIZ_HUES.length], theme).solid}
+                  />
+                </div>
+              </div>
             );
           })}
-        </ul>
+        </div>
       );
+
     case 'recent_activity':
       return activity.length === 0 ? (
         <Empty text="No activity yet" />
       ) : (
-        <ul className="space-y-1">
-          {activity.slice(0, 8).map((a) => (
-            <li key={a.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-glass">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-              <span className="flex-1 truncate text-text-muted">You {a.message}</span>
-              <span className="shrink-0 text-xs text-text-subtle">{relativeTime(a.at)}</span>
-            </li>
-          ))}
-        </ul>
-      );
-    case 'time_tracked':
-      return (
-        <div className="flex items-end justify-between">
-          <p className="text-3xl font-semibold tabular-nums text-primary">{formatDuration(totalTime)}</p>
-          <Clock className="h-5 w-5 text-primary" />
+        <div className="max-h-[320px] overflow-y-auto pr-1">
+          <ul className="divide-y divide-border">
+            {activity.slice(0, 10).map((a) => (
+              <li key={a.id} className="group flex items-center justify-between gap-4 rounded-lg px-2 py-3 transition-colors hover:bg-surface-muted">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-2 w-2 shrink-0 rounded-full bg-primary ring-4 ring-primary-soft" />
+                  <p className="truncate text-sm font-medium text-text-muted">
+                    <span className="font-bold text-text">You</span> {a.message}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-text-subtle">{relativeTime(a.at)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       );
+
+    case 'time_tracked':
+      return (
+        <div className="flex items-center justify-between">
+          <p className="font-display text-4xl font-bold tracking-tight text-primary tabular-nums">{formatDuration(totalTime)}</p>
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-soft">
+            <Clock className="h-6 w-6 text-primary" />
+          </div>
+        </div>
+      );
+
     case 'my_tasks': {
       const mine = stats.byAssignee.find((a) => a.name === userName);
+      const activeCount = mine ? mine.count - mine.done : 0;
       return (
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-3xl font-semibold tabular-nums text-accent">{mine ? mine.count - mine.done : 0}</p>
-            <p className="text-xs text-text-subtle">active assigned to you</p>
+        <div className="flex items-center justify-between">
+          <p className="font-display text-4xl font-bold tracking-tight text-primary tabular-nums">{activeCount}</p>
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-soft">
+            <User className="h-6 w-6 text-primary" />
           </div>
-          <User className="h-5 w-5 text-accent" />
         </div>
       );
     }
@@ -318,17 +458,25 @@ function WidgetBody({
   }
 }
 
-function Row({ label, value, tone }: { label: string; value: number; tone?: string }) {
+function Row({ label, value, tone, statusColor }: { label: string; value: number; tone?: string; statusColor?: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-text-muted">{label}</span>
-      <span className={cn('font-semibold tabular-nums', tone ?? 'text-text')}>{value}</span>
+    <div className="flex items-center justify-between border-b border-border pb-1.5 text-sm">
+      <div className="flex items-center gap-2">
+        {statusColor && <span className={cn('h-2 w-2 rounded-full', statusColor)} />}
+        <span className="font-medium text-text-muted">{label}</span>
+      </div>
+      <span className={cn('font-bold tabular-nums text-text', tone)}>{value}</span>
     </div>
   );
 }
 
-function Empty({ text = 'No data yet' }: { text?: string }) {
-  return <p className="py-6 text-center text-sm text-text-subtle">{text}</p>;
+function Empty({ text = 'Nothing here yet' }: { text?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <BarChart3 className="mb-1 h-5 w-5 text-text-subtle" />
+      <p className="mt-1 text-xs font-bold text-text-subtle">{text}</p>
+    </div>
+  );
 }
 
 function hashId(name: string): number {
@@ -338,3 +486,4 @@ function hashId(name: string): number {
 }
 
 export default DashboardView;
+

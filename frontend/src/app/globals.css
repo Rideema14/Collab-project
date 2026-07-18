@@ -3,36 +3,60 @@
 @tailwind utilities;
 
 /*
- * KUBERYA DESIGN SYSTEM — dark-mode-first, premium SaaS.
+ * KUBERYA DESIGN SYSTEM — a strict THREE-COLOUR system: BLACK, WHITE, and ONE
+ * hue (burnt-orange). Everything in the app is a shade of these — accent,
+ * success, warning, danger, statuses, tags, charts and priority cards are all
+ * orange shades; surfaces and text are neutral black/white/grey. No teal, gold,
+ * amber, blue, green or any other hue, and no multi-colour gradients.
  * ------------------------------------------------------
- * Token hierarchy (unchanged architecture, retuned values):
- *   CORE      — raw palette (indigo/violet/cyan accents, charcoal neutrals).
+ * Token hierarchy:
+ *   CORE      — raw palette: burnt_peach (the one orange) + neutral ink/slate.
  *   BASE      — spacing(8px), radius, shadow, blur, z, motion.
  *   SEMANTIC  — surface/text/border/primary/accent/glass… the ONLY layer
  *               components touch. Dark is the primary theme; light is an override.
  *
  * Because only the semantic layer flips per theme, dark→light is a token swap.
- * Glass, gradients, glow, and elevation are first-class tokens so the premium
- * look is consistent and not sprinkled as ad-hoc classes.
+ * (Board/status/tag/avatar hues are generated in lib/domain/status-color.ts,
+ * which is likewise locked to the single orange hue + neutral greys.)
  */
 
 :root {
-  /* ---------- CORE: raw palette ---------- */
-  --indigo-300: #a5b4fc;
-  --indigo-400: #818cf8;
-  --indigo-500: #6366f1;
-  --indigo-600: #4f46e5;
-  --violet-400: #a78bfa;
-  --violet-500: #8b5cf6;
-  --cyan-400: #22d3ee;
+  /* ---------- CORE: raw palette ----------
+     One brand family + neutrals, each a 9-step ladder where 100 is the darkest
+     step and 900 the lightest (DEFAULT sits at 500 — the swatch exactly as given):
+       charcoal_blue — legacy near-black, kept only for text-inverse.
+       burnt_peach   — THE brand orange; primary/accent/success/warning + danger. */
+  --charcoalblue-100: #080e11;
+  --charcoalblue-200: #0f1c22;
+  --charcoalblue-300: #172b32;
+  --charcoalblue-400: #1f3943;
+  --charcoalblue-500: #264653;
+  --charcoalblue-600: #3f7489;
+  --charcoalblue-700: #609db6;
+  --charcoalblue-800: #95bece;
+  --charcoalblue-900: #cadee7;
 
-  --charcoal-950: #08090d;
-  --charcoal-900: #0b0d12;
-  --charcoal-850: #101319;
-  --charcoal-800: #151922;
-  --charcoal-750: #1b202b;
-  --charcoal-700: #232937;
-  --charcoal-600: #303748;
+
+
+
+  --burntpeach-100: #371107;
+  --burntpeach-200: #6e220f;
+  --burntpeach-300: #a43316;
+  --burntpeach-400: #db441e;
+  --burntpeach-500: #e76f51;
+  --burntpeach-600: #ec8b73;
+  --burntpeach-700: #f1a896;
+  --burntpeach-800: #f5c5b9;
+  --burntpeach-900: #fae2dc;
+
+  /* Neutral "ink" scale — true dark greys with no blue/teal tint, used for the
+     dark-theme surface ladder (bg/surface/muted/raised/elevated) so the app
+     reads as genuinely dark rather than blue-tinted charcoal. */
+  --ink-100: #121212;
+  --ink-200: #1a1a1a;
+  --ink-300: #222222;
+  --ink-400: #2a2a2a;
+  --ink-500: #333333;
 
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
@@ -43,19 +67,18 @@
   --slate-600: #475569;
   --slate-700: #334155;
   --slate-900: #0f172a;
-
-  --green-400: #34d399;
-  --amber-400: #fbbf24;
-  --red-400: #f87171;
+  --slate-950: #020617;
 
   /* ---------- BASE: radius / shadow / blur / z / motion ---------- */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 0.875rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.75rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-btn: 0.625rem;
+  --radius-pill: 9999px;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
 
-  --blur-glass: 16px;
+  --blur-glass: 14px;
 
   --z-dropdown: 20;
   --z-overlay: 40;
@@ -70,124 +93,142 @@
   --dur-slow: 420ms;
 
   /* ---------- SEMANTIC — DARK (primary theme) ---------- */
-  --color-bg: var(--charcoal-950);
-  --color-surface: var(--charcoal-850);
-  --color-surface-muted: var(--charcoal-800);
-  --color-surface-raised: var(--charcoal-750);
-  --color-elevated: var(--charcoal-700);
+  --color-bg: var(--ink-100);
+  --color-surface: var(--ink-200);
+  --color-surface-muted: var(--ink-300);
+  --color-surface-raised: var(--ink-400);
+  --color-elevated: var(--ink-500);
 
-  --color-border: rgb(255 255 255 / 0.07);
-  --color-border-strong: rgb(255 255 255 / 0.14);
+  --color-border: rgb(255 255 255 / 0.05);
+  --color-border-strong: rgb(255 255 255 / 0.12);
 
-  --color-text: #f5f6fa;
-  --color-text-muted: #b3b8c6;
-  --color-text-subtle: #7b8092;
-  --color-text-inverse: var(--charcoal-950);
+  /* Neutral white/grey text ramp (not the old cyan-tinted charcoalblue) so dark
+     theme reads as clean white text rather than bluish. */
+  --color-text: #f3f4f6;
+  --color-text-muted: #b1b5bd;
+  --color-text-subtle: #82868e;
+  --color-text-inverse: var(--charcoalblue-100);
 
-  --color-primary: var(--indigo-500);
-  --color-primary-hover: var(--indigo-400);
-  --color-primary-soft: rgb(99 102 241 / 0.16);
+  --color-primary: var(--burntpeach-400);
+  --color-primary-hover: var(--burntpeach-500);
+  --color-primary-soft: rgb(219 68 30 / 0.18);
   --color-primary-fg: #ffffff;
-  --color-primary-on-soft: var(--indigo-300);
+  --color-primary-on-soft: var(--burntpeach-700);
 
-  --color-accent: var(--violet-500);
-  --color-accent-soft: rgb(139 92 246 / 0.16);
-  --color-accent-fg: #ffffff;
+  /* Constant "this is selected" fill — same opaque fill in BOTH themes
+     (deliberately not redeclared in the light-theme override below), so an
+     active nav/tab item always reads as one recognizable solid highlight
+     rather than flipping tone with the theme. No alpha — a flat opaque fill,
+     not a translucent wash. Reuses the core swatches directly (rather than
+     one-off hex) so it stays in lockstep with the brand hue. */
+  --color-primary-selected: var(--burntpeach-600);
+  --color-primary-on-selected: var(--burntpeach-100);
 
-  --color-success: var(--green-400);
-  --color-success-soft: rgb(52 211 153 / 0.16);
-  --color-success-fg: #a7f3d0;
+  /* Monochrome: accent/success/warning are all shades of the brand orange (no
+     teal/gold). Distinction now comes from shade + iconography, not hue. */
+  --color-accent: var(--burntpeach-500);
+  --color-accent-soft: rgb(231 111 81 / 0.16);
+  --color-accent-fg: var(--burntpeach-100);
 
-  --color-warning: var(--amber-400);
-  --color-warning-soft: rgb(251 191 36 / 0.16);
-  --color-warning-fg: #fde68a;
+  --color-success: var(--burntpeach-500);
+  --color-success-soft: rgb(231 111 81 / 0.16);
+  --color-success-fg: var(--burntpeach-800);
 
-  --color-danger: var(--red-400);
-  --color-danger-hover: #fca5a5;
-  --color-danger-soft: rgb(248 113 113 / 0.16);
-  --color-danger-fg: #fecaca;
+  --color-warning: var(--burntpeach-400);
+  --color-warning-soft: rgb(219 68 30 / 0.16);
+  --color-warning-fg: var(--burntpeach-700);
 
-  --color-focus: var(--indigo-400);
-  --color-overlay: rgb(3 4 8 / 0.66);
+  --color-danger: var(--burntpeach-300);
+  --color-danger-hover: var(--burntpeach-400);
+  --color-danger-soft: rgb(164 51 22 / 0.16);
+  --color-danger-fg: var(--burntpeach-800);
+
+  --color-focus: var(--burntpeach-400);
+  --color-overlay: rgb(8 14 17 / 0.66);
   --color-skeleton: rgb(255 255 255 / 0.06);
 
-  /* Glass + depth */
-  --glass-bg: rgb(255 255 255 / 0.045);
-  --glass-bg-strong: rgb(255 255 255 / 0.07);
-  --glass-border: rgb(255 255 255 / 0.09);
+  /* Glass + depth — warm-tinted so blur/border read as part of the palette. */
+  --glass-bg: rgb(250 226 220 / 0.05);
+  --glass-bg-strong: rgb(250 226 220 / 0.08);
+  --glass-border: rgb(241 168 150 / 0.14);
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 8px 24px -8px rgb(0 0 0 / 0.55);
-  --shadow-lg: 0 24px 60px -16px rgb(0 0 0 / 0.65);
-  --shadow-glass: 0 8px 32px -8px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.06);
-  --shadow-glow: 0 0 0 1px rgb(99 102 241 / 0.35), 0 8px 40px -8px rgb(99 102 241 / 0.45);
+  /* Layered elevation — a tight contact shadow + a soft diffuse ambient one, so
+     cards read as gently lifted off the canvas rather than outlined by a single
+     hard drop. */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.45);
+  --shadow-md: 0 2px 6px rgb(0 0 0 / 0.35), 0 14px 32px -12px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 4px 10px rgb(0 0 0 / 0.4), 0 30px 64px -18px rgb(0 0 0 / 0.7);
+  --shadow-glass: 0 8px 28px -10px rgb(3 5 6 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --shadow-glow: 0 0 0 1px rgb(219 68 30 / 0.35), 0 8px 32px -10px rgb(219 68 30 / 0.38);
 
-  /* Gradients (soft lighting / aurora) */
-  --gradient-brand: linear-gradient(135deg, var(--violet-500) 0%, var(--indigo-500) 50%, var(--cyan-400) 100%);
-  --gradient-brand-soft: linear-gradient(135deg, rgb(139 92 246 / 0.18), rgb(34 211 238 / 0.12));
+  /* Flat, single-hue "gradients" — kept as linear-gradient() (some consumers set
+     them via `background-image`, which requires an image value, not a plain
+     color) but with identical start/end stops so nothing actually fades between
+     colors. Classy/clean brand direction: solid brand colour, white, ink — no color blends. */
+  --gradient-brand: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary) 100%);
+  --gradient-brand-soft: linear-gradient(180deg, var(--color-primary-soft) 0%, var(--color-primary-soft) 100%);
   --gradient-surface: linear-gradient(180deg, rgb(255 255 255 / 0.03), rgb(255 255 255 / 0));
-  --aurora-1: rgb(99 102 241 / 0.22);
-  --aurora-2: rgb(139 92 246 / 0.18);
-  --aurora-3: rgb(34 211 238 / 0.12);
 }
 
 /* ---------- SEMANTIC — LIGHT (override) ---------- */
 :root[data-theme='light'] {
-  --color-bg: #f6f7fb;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f3f9;
-  --color-surface-raised: #ffffff;
-  --color-elevated: #ffffff;
+  /* Cool slate canvas (not warm cream): a crisp light-slate background holding
+     solid white cards with ultra-thin slate-toned dividers. Colour is reserved
+     for the brand accents below, not smeared across the neutrals. */
+  --color-bg: #f0f1f3;
+  --color-surface: #fbfaf9;
+  --color-surface-muted: var(--slate-100);
+  --color-surface-raised: #fbfaf9;
+  --color-elevated: #fbfaf9;
 
-  --color-border: rgb(15 23 42 / 0.08);
-  --color-border-strong: rgb(15 23 42 / 0.16);
+  --color-border: rgb(2 6 23 / 0.08);
+  --color-border-strong: rgb(2 6 23 / 0.14);
 
-  --color-text: var(--slate-900);
-  --color-text-muted: var(--slate-600);
-  --color-text-subtle: var(--slate-500);
+  --color-text: var(--slate-950);
+  --color-text-muted: var(--slate-500);
+  --color-text-subtle: var(--slate-400);
   --color-text-inverse: #ffffff;
 
-  --color-primary: var(--indigo-600);
-  --color-primary-hover: var(--indigo-500);
-  --color-primary-soft: rgb(99 102 241 / 0.1);
+  --color-primary: var(--burntpeach-400);
+  --color-primary-hover: var(--burntpeach-300);
+  --color-primary-soft: rgb(219 68 30 / 0.1);
   --color-primary-fg: #ffffff;
-  --color-primary-on-soft: var(--indigo-600);
+  --color-primary-on-soft: var(--burntpeach-400);
 
-  --color-accent: var(--violet-500);
-  --color-accent-soft: rgb(139 92 246 / 0.1);
+  --color-accent: var(--burntpeach-400);
+  --color-accent-soft: rgb(219 68 30 / 0.1);
   --color-accent-fg: #ffffff;
 
-  --color-success: #16a34a;
-  --color-success-soft: #dcfce7;
-  --color-success-fg: #14532d;
+  --color-success: var(--burntpeach-400);
+  --color-success-soft: var(--burntpeach-900);
+  --color-success-fg: var(--burntpeach-200);
 
-  --color-warning: #d97706;
-  --color-warning-soft: #fef3c7;
-  --color-warning-fg: #78350f;
+  --color-warning: var(--burntpeach-300);
+  --color-warning-soft: var(--burntpeach-900);
+  --color-warning-fg: var(--burntpeach-200);
 
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
-  --color-danger-soft: #fee2e2;
-  --color-danger-fg: #7f1d1d;
+  --color-danger: var(--burntpeach-200);
+  --color-danger-hover: var(--burntpeach-100);
+  --color-danger-soft: var(--burntpeach-900);
+  --color-danger-fg: var(--burntpeach-200);
 
-  --color-focus: var(--indigo-500);
-  --color-overlay: rgb(15 23 42 / 0.4);
-  --color-skeleton: rgb(15 23 42 / 0.06);
+  --color-focus: var(--burntpeach-400);
+  --color-overlay: rgb(55 17 7 / 0.4);
+  --color-skeleton: rgb(55 17 7 / 0.06);
 
-  --glass-bg: rgb(255 255 255 / 0.7);
-  --glass-bg-strong: rgb(255 255 255 / 0.85);
-  --glass-border: rgb(15 23 42 / 0.08);
+  --glass-bg: rgb(255 255 255 / 0.85);
+  --glass-bg-strong: rgb(255 255 255 / 0.95);
+  --glass-border: rgb(2 6 23 / 0.08);
 
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-md: 0 8px 24px -10px rgb(15 23 42 / 0.14);
-  --shadow-lg: 0 24px 60px -18px rgb(15 23 42 / 0.2);
-  --shadow-glass: 0 8px 32px -12px rgb(15 23 42 / 0.16), inset 0 1px 0 rgb(255 255 255 / 0.6);
-  --shadow-glow: 0 0 0 1px rgb(99 102 241 / 0.28), 0 10px 40px -10px rgb(99 102 241 / 0.35);
+  /* Soft, diffuse, multi-layer card shadow — the premium "floating white card"
+     look: a faint contact edge plus a wide, low-opacity ambient spread. */
+  --shadow-sm: 0 1px 2px rgb(55 17 7 / 0.05), 0 1px 1px rgb(55 17 7 / 0.03);
+  --shadow-md: 0 2px 4px rgb(55 17 7 / 0.04), 0 12px 28px -8px rgb(55 17 7 / 0.12);
+  --shadow-lg: 0 4px 8px rgb(55 17 7 / 0.05), 0 28px 60px -18px rgb(55 17 7 / 0.2);
+  --shadow-glass: 0 8px 28px -12px rgb(55 17 7 / 0.14), inset 0 1px 0 rgb(255 255 255 / 0.6);
+  --shadow-glow: 0 0 0 1px rgb(219 68 30 / 0.22), 0 10px 32px -12px rgb(219 68 30 / 0.24);
 
-  --gradient-surface: linear-gradient(180deg, rgb(15 23 42 / 0.015), rgb(15 23 42 / 0));
-  --aurora-1: rgb(99 102 241 / 0.12);
-  --aurora-2: rgb(139 92 246 / 0.1);
-  --aurora-3: rgb(34 211 238 / 0.08);
+  --gradient-surface: linear-gradient(180deg, rgb(55 17 7 / 0.015), rgb(55 17 7 / 0));
 }
 
 @layer base {
@@ -205,19 +246,13 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Ambient aurora glow behind the app — soft lighting, fixed, GPU-cheap. */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: -20% -10% auto -10%;
-    height: 60vh;
-    z-index: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(60% 60% at 20% 0%, var(--aurora-2), transparent 60%),
-      radial-gradient(50% 50% at 85% 10%, var(--aurora-3), transparent 60%),
-      radial-gradient(70% 50% at 50% 0%, var(--aurora-1), transparent 65%);
-    filter: blur(20px);
+  /* Page and section titles wear the display grotesk with tightened tracking —
+     the single biggest lift toward a confident, editorial headline voice. Large
+     numerals and heading-like <p> elements opt in explicitly via `font-display`. */
+  h1,
+  h2 {
+    font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+    letter-spacing: -0.02em;
   }
 
   :focus-visible {
@@ -260,10 +295,11 @@
 
 @layer components {
   /*
-   * The auth screen is a branded, always-dark cosmic experience. Re-declaring the
+   * The auth screen is a branded, always-dark experience. Re-declaring the
    * semantic tokens here (rather than relying on the app theme) means the sign-in
    * form's inputs/labels stay readable on the glass card whether the user's app
-   * theme is light or dark.
+   * theme is light or dark. Uses the same brand palette as the rest of the
+   * app — no separate identity.
    */
   .cosmic-auth {
     /* Always dark, independent of the app theme: force a dark color-scheme and an
@@ -278,25 +314,25 @@
     --color-text-subtle: #8b90a2;
     --color-border: rgb(255 255 255 / 0.1);
     --color-border-strong: rgb(255 255 255 / 0.18);
-    --color-primary: var(--indigo-500);
-    --color-primary-hover: var(--indigo-400);
+    --color-primary: var(--burntpeach-500);
+    --color-primary-hover: var(--burntpeach-600);
     --color-primary-fg: #ffffff;
-    --color-danger: #fb7185;
-    --color-focus: var(--indigo-400);
+    --color-danger: var(--burntpeach-400);
+    --color-focus: var(--burntpeach-600);
   }
 
-  /* Frosted glass panel — the signature surface. */
+  /* Solid elevated panel — replaces the old frosted-glass look with an opaque
+     surface + border + shadow. Kept the same class names so every consumer
+     (popovers, drawers, dashboard widgets, meetings, chat, etc.) picks this up
+     automatically with no per-file changes. */
   .glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--blur-glass)) saturate(140%);
-    -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
-    border: 1px solid var(--glass-border);
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border-strong);
   }
   .glass-strong {
-    background: var(--glass-bg-strong);
-    backdrop-filter: blur(var(--blur-glass)) saturate(160%);
-    -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(160%);
-    border: 1px solid var(--glass-border);
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border-strong);
+    box-shadow: var(--shadow-md);
   }
   /* Gradient text for hero numerals / brand marks. */
   .text-gradient {
@@ -362,50 +398,52 @@
  */
 .light-scope {
   color-scheme: light;
-  --color-bg: #f4f6fb;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f3f9;
-  --color-surface-raised: #ffffff;
-  --color-elevated: #ffffff;
+  --color-bg: #f0f1f3;
+  --color-surface: #fbfaf9;
+  --color-surface-muted: var(--slate-100);
+  --color-surface-raised: #fbfaf9;
+  --color-elevated: #fbfaf9;
 
-  --color-border: rgb(15 23 42 / 0.08);
-  --color-border-strong: rgb(15 23 42 / 0.16);
+  --color-border: rgb(2 6 23 / 0.08);
+  --color-border-strong: rgb(2 6 23 / 0.14);
 
-  --color-text: #0f172a;
-  --color-text-muted: #475569;
-  --color-text-subtle: #64748b;
+  --color-text: var(--slate-950);
+  --color-text-muted: var(--slate-500);
+  --color-text-subtle: var(--slate-400);
   --color-text-inverse: #ffffff;
 
-  --color-primary: #4f46e5;
-  --color-primary-hover: #6366f1;
-  --color-primary-soft: rgb(99 102 241 / 0.1);
+  --color-primary: var(--burntpeach-400);
+  --color-primary-hover: var(--burntpeach-300);
+  --color-primary-soft: rgb(219 68 30 / 0.1);
   --color-primary-fg: #ffffff;
-  --color-primary-on-soft: #4f46e5;
+  --color-primary-on-soft: var(--burntpeach-400);
 
-  --color-accent: #8b5cf6;
-  --color-accent-soft: rgb(139 92 246 / 0.1);
+  --color-accent: var(--burntpeach-400);
+  --color-accent-soft: rgb(219 68 30 / 0.1);
   --color-accent-fg: #ffffff;
 
-  --color-success: #16a34a;
-  --color-success-soft: #dcfce7;
-  --color-success-fg: #14532d;
+  --color-success: var(--burntpeach-400);
+  --color-success-soft: var(--burntpeach-900);
+  --color-success-fg: var(--burntpeach-200);
 
-  --color-warning: #d97706;
-  --color-warning-soft: #fef3c7;
-  --color-warning-fg: #78350f;
+  --color-warning: var(--burntpeach-300);
+  --color-warning-soft: var(--burntpeach-900);
+  --color-warning-fg: var(--burntpeach-200);
 
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
-  --color-danger-soft: #fee2e2;
-  --color-danger-fg: #7f1d1d;
+  --color-danger: var(--burntpeach-200);
+  --color-danger-hover: var(--burntpeach-100);
+  --color-danger-soft: var(--burntpeach-900);
+  --color-danger-fg: var(--burntpeach-200);
 
-  --color-focus: #6366f1;
-  --color-overlay: rgb(15 23 42 / 0.4);
-  --color-skeleton: rgb(15 23 42 / 0.06);
+  --color-focus: var(--burntpeach-400);
+  --color-overlay: rgb(55 17 7 / 0.4);
+  --color-skeleton: rgb(55 17 7 / 0.06);
 
-  --glass-bg: rgb(255 255 255 / 0.7);
-  --glass-bg-strong: rgb(255 255 255 / 0.85);
-  --glass-border: rgb(15 23 42 / 0.08);
+  --glass-bg: rgb(255 255 255 / 0.85);
+  --glass-bg-strong: rgb(255 255 255 / 0.95);
+  --glass-border: rgb(2 6 23 / 0.08);
 
   color: var(--color-text);
 }
+
+

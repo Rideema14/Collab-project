@@ -33,7 +33,6 @@ import {
   selectLists,
   selectSpaces,
   selectActiveWorkspaceId,
-  selectHierarchy,
   selectSidebarCollapsed,
   selectMobileSidebarOpen,
   selectSessionUser,
@@ -56,11 +55,11 @@ import {
   useDeleteTaskMutation,
   useGetAdminDashboardQuery,
 } from '@/store/api/backendApi';
-import { statusColors } from '@/lib/domain/status-color';
 import { cn } from '@/lib/design/cn';
 import type { Folder, List, Space } from '@/lib/domain/types';
 import { Avatar } from '@/components/domain/AvatarStack';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { useToast } from '@/lib/toast-context';
 import {
   DropdownMenu,
@@ -105,7 +104,7 @@ export function AppSidebar() {
             onClick={() => dispatch(setMobileSidebarOpen(false))}
             className="fixed inset-0 z-overlay animate-fade-in bg-overlay"
           />
-          <aside className="glass-strong fixed inset-y-2 left-2 z-overlay w-[268px] animate-slide-in-left overflow-hidden rounded-2xl shadow-lg">
+          <aside className="fixed inset-y-2 left-2 z-overlay w-[268px] animate-slide-in-left overflow-hidden rounded-2xl border border-border bg-surface shadow-lg">
             <PanelContent collapsed={false} onNavigate={() => dispatch(setMobileSidebarOpen(false))} />
           </aside>
         </div>
@@ -114,7 +113,7 @@ export function AppSidebar() {
       {/* Desktop floating sidebar */}
       <aside
         style={{ width }}
-        className="glass z-10 hidden h-full shrink-0 overflow-hidden rounded-2xl shadow-glass transition-[width] duration-200 ease-premium md:block"
+        className="z-10 hidden h-full shrink-0 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-[width] duration-med ease-premium md:block"
       >
         <PanelContent collapsed={collapsed} />
       </aside>
@@ -135,11 +134,9 @@ function PanelContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigat
   const spaces = useAppSelector(selectSpaces);
   const lists = useAppSelector(selectLists);
   const favorites = useAppSelector(selectFavorites);
-  const workspaces = useAppSelector(selectHierarchy).workspaces;
   const activeWsId = useAppSelector(selectActiveWorkspaceId);
   const user = useAppSelector(selectSessionUser);
   const isAdmin = useIsOrgAdmin();
-  const activeWs = workspaces.find((w) => w.id === activeWsId) ?? workspaces[0];
 
   const favLists = favorites
     .map((id) => lists.find((l) => l.id === id))
@@ -148,33 +145,24 @@ function PanelContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigat
   return (
     <div className="flex h-full flex-col">
       {/* Workspace header */}
-      <div className={cn('flex items-center gap-2.5 px-3 pt-3 pb-2', collapsed && 'flex-col gap-1.5 px-0')}>
-        <div
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white shadow-glow"
-          style={{ background: 'var(--gradient-brand)' }}
-        >
-          {(activeWs?.name ?? 'K').slice(0, 1).toUpperCase()}
+      <div className={cn('flex items-center gap-3 px-3 py-3', collapsed && 'flex-col gap-2 px-0')}>
+        <div className={collapsed ? undefined : 'min-w-0 flex-1'}>
+          <WorkspaceSwitcher collapsed={collapsed} />
         </div>
-        {!collapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-text">{activeWs?.name}</p>
-            <p className="text-xs text-text-subtle">Workspace</p>
-          </div>
-        )}
         {/* Collapse / expand — always visible in BOTH states */}
         <Tooltip content={collapsed ? 'Expand' : 'Collapse'} side="right">
           <button
             type="button"
             onClick={() => dispatch(toggleSidebar())}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-text-subtle transition-colors hover:bg-glass-border hover:text-text"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-btn text-text-subtle transition-colors hover:bg-surface-muted hover:text-text"
           >
             {collapsed ? <PanelLeft className="h-[18px] w-[18px]" /> : <ChevronsLeft className="h-4 w-4" />}
           </button>
         </Tooltip>
       </div>
 
-      <nav className={cn('min-h-0 flex-1 overflow-y-auto', collapsed ? 'px-2' : 'px-2.5')}>
+      <nav className={cn('min-h-0 flex-1 overflow-y-auto', collapsed ? 'px-2' : 'px-3')}>
         {NAV.map((item) => (
           <NavItem key={item.href} {...item} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
@@ -187,7 +175,7 @@ function PanelContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigat
         {!collapsed && favLists.length > 0 && (
           <div className="mt-4">
             <SectionLabel>Favorites</SectionLabel>
-            <div className="mt-0.5">
+            <div className="mt-1">
               {favLists.map((list) => (
                 <ListLink key={`fav-${list.id}`} list={list} depth={0} onNavigate={onNavigate} />
               ))}
@@ -195,38 +183,33 @@ function PanelContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigat
           </div>
         )}
 
-        {/* Spaces */}
-        <div className={cn('mb-0.5 mt-4 flex items-center', collapsed ? 'justify-center' : 'justify-between px-2')}>
-          {!collapsed && <SectionLabel>Spaces</SectionLabel>}
-          <Tooltip content="New space">
-            <button
-              type="button"
-              aria-label="Add space"
-              onClick={() =>
-                dispatch(
-                  addSpace({
-                    workspaceId: activeWsId,
-                    name: 'New Space',
-                    statusSetId: DEFAULT_STATUS_SET_ID,
-                    createdAt: new Date().toISOString(),
-                  })
-                )
-              }
-              className="grid h-5 w-5 place-items-center rounded text-text-subtle transition-colors hover:bg-glass-border hover:text-text"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </Tooltip>
-        </div>
-
-        {spaces.map((space) => (
-          <SpaceNode key={space.id} space={space} collapsed={collapsed} onNavigate={onNavigate} />
-        ))}
+        {/* Spaces — a light card grouping (border only, no shadow/glass) so this
+            top-level section reads as its own group rather than a flat list. */}
+        {collapsed ? (
+          <>
+            <div className="mb-1 mt-4 flex justify-center">
+              <AddSpaceButton workspaceId={activeWsId} />
+            </div>
+            {spaces.map((space) => (
+              <SpaceNode key={space.id} space={space} collapsed={collapsed} onNavigate={onNavigate} />
+            ))}
+          </>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-border p-2">
+            <div className="mb-1 flex items-center justify-between px-1">
+              <SectionLabel>Spaces</SectionLabel>
+              <AddSpaceButton workspaceId={activeWsId} />
+            </div>
+            {spaces.map((space) => (
+              <SpaceNode key={space.id} space={space} collapsed={collapsed} onNavigate={onNavigate} />
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* Profile footer */}
-      <div className={cn('mt-2 border-t border-glass-border p-2.5', collapsed && 'flex justify-center')}>
-        <div className={cn('flex items-center gap-2.5 rounded-xl px-1.5 py-1.5', collapsed && 'px-0')}>
+      <div className={cn('mt-2 border-t border-border p-3', collapsed && 'flex justify-center')}>
+        <div className={cn('flex items-center gap-3 rounded-xl px-1.5 py-2', collapsed && 'px-0')}>
           {user && <Avatar person={user} size={30} />}
           {!collapsed && user && (
             <div className="min-w-0 flex-1">
@@ -242,7 +225,32 @@ function PanelContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigat
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="px-2 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">{children}</span>
+    <span className="px-2 text-xs font-semibold uppercase tracking-wider text-text-subtle">{children}</span>
+  );
+}
+
+function AddSpaceButton({ workspaceId }: { workspaceId: string }) {
+  const dispatch = useAppDispatch();
+  return (
+    <Tooltip content="New space">
+      <button
+        type="button"
+        aria-label="Add space"
+        onClick={() =>
+          dispatch(
+            addSpace({
+              workspaceId,
+              name: 'New Space',
+              statusSetId: DEFAULT_STATUS_SET_ID,
+              createdAt: new Date().toISOString(),
+            })
+          )
+        }
+        className="grid h-5 w-5 place-items-center rounded text-text-subtle transition-colors hover:bg-surface-muted hover:text-text"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -266,9 +274,11 @@ function NavItem({
       href={href}
       onClick={onNavigate}
       className={cn(
-        'relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors',
+        'relative flex items-center gap-3 rounded-btn px-3 py-2 text-sm transition-colors',
         collapsed && 'justify-center px-0',
-        active ? 'bg-primary-soft text-primary ring-1 ring-inset ring-[color:var(--color-primary)]/25' : 'text-text-muted hover:bg-glass-border hover:text-text'
+        active
+          ? 'bg-primary-soft font-semibold text-primary-on-soft'
+          : 'font-medium text-text-muted hover:bg-surface-muted hover:text-text'
       )}
     >
       <Icon className="h-[18px] w-[18px] shrink-0" />
@@ -318,16 +328,12 @@ function SpaceNode({
   const open = expanded[space.id] !== false;
   const [adding, setAdding] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const dot = statusColors(space.hue).solid;
 
   if (collapsed) {
     return (
       <Tooltip content={space.name} side="right">
-        <div className="mx-auto my-1 grid h-9 w-9 place-items-center rounded-xl text-base hover:bg-glass-border">
-          <span
-            className="grid h-5 w-5 place-items-center rounded-[3px] text-[11px] font-bold"
-            style={{ background: dot, color: '#fff' }}
-          >
+        <div className="mx-auto my-1 grid h-9 w-9 place-items-center rounded-btn text-base hover:bg-surface-muted">
+          <span className="grid h-5 w-5 place-items-center rounded-[3px] bg-surface-muted text-[11px] font-bold text-text-subtle">
             {space.name.slice(0, 1).toUpperCase()}
           </span>
         </div>
@@ -341,14 +347,7 @@ function SpaceNode({
         depth={0}
         open={open}
         onToggle={() => dispatch(toggleExpanded(space.id))}
-        leading={
-          <span
-            className="grid h-4 w-4 shrink-0 place-items-center rounded-[3px] text-[9px] font-bold"
-            style={{ background: dot, color: '#fff' }}
-          >
-            {space.name.slice(0, 1).toUpperCase()}
-          </span>
-        }
+        leading={null}
         label={space.name}
         renaming={renaming}
         onRenameCommit={(v) => {
@@ -533,13 +532,13 @@ function ListLink({ list, depth, onNavigate }: { list: List; depth: number; onNa
     <div
       className={cn(
         'group flex items-center gap-1.5 rounded-lg pr-1.5 transition-colors',
-        active ? 'bg-glass-border' : 'hover:bg-glass-border'
+        active ? 'bg-primary-soft' : 'hover:bg-surface-muted'
       )}
       style={{ paddingLeft: pad }}
     >
       <Link href={href} onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-sm">
-        <Hash className={cn('h-3.5 w-3.5 shrink-0', active ? 'text-primary' : 'text-text-subtle')} />
-        <span className={cn('truncate', active ? 'font-medium text-text' : 'text-text-muted')}>{list.name}</span>
+        <Hash className={cn('h-3.5 w-3.5 shrink-0', active ? 'text-primary-on-soft' : 'text-text-subtle')} />
+        <span className={cn('truncate', active ? 'font-semibold text-primary-on-soft' : 'text-text-muted')}>{list.name}</span>
       </Link>
       <button
         type="button"
@@ -602,7 +601,7 @@ function Row({
   const pad = 4 + depth * 16;
   return (
     <div
-      className="group flex items-center gap-1 rounded-lg pr-1 transition-colors hover:bg-glass-border"
+      className="group flex items-center gap-1 rounded-lg pr-1 transition-colors hover:bg-surface-muted"
       style={{ paddingLeft: pad }}
     >
       <button
@@ -620,7 +619,7 @@ function Row({
         <button
           type="button"
           onClick={onToggle}
-          className="min-w-0 flex-1 truncate py-1.5 text-left text-sm font-medium text-text"
+          className="min-w-0 flex-1 truncate py-1.5 text-left text-sm font-semibold text-text"
         >
           {label}
         </button>

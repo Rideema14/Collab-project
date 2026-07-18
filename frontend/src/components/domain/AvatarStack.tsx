@@ -1,7 +1,6 @@
 'use client';
 
 import { cn } from '@/lib/design/cn';
-import { statusColors } from '@/lib/domain/status-color';
 import { useTheme } from '@/lib/theme-context';
 
 export interface AvatarPerson {
@@ -14,9 +13,17 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
 }
 
-/** Deterministic hue per user id, so an avatar's color is stable. */
-function hueFor(id: number): number {
-  return (id * 47) % 360;
+/**
+ * Neutral grey avatar tone per user id — pure black/white shades (no hue), so a
+ * stack of avatars reads as a set of clean initials chips instead of adding a
+ * second color to the orange/black/white system. The id picks one of a few grey
+ * steps so people are still visually distinguishable.
+ */
+function avatarTone(id: number, theme: 'light' | 'dark') {
+  const step = Math.abs(id) % 4;
+  return theme === 'dark'
+    ? { bg: `hsl(0 0% ${24 + step * 5}%)`, fg: 'hsl(0 0% 92%)' }
+    : { bg: `hsl(0 0% ${86 - step * 5}%)`, fg: 'hsl(0 0% 28%)' };
 }
 
 export function Avatar({
@@ -31,7 +38,7 @@ export function Avatar({
   className?: string;
 }) {
   const { theme } = useTheme();
-  const c = statusColors(hueFor(person.id), theme);
+  const c = avatarTone(person.id, theme);
   return (
     <span
       title={person.name}
@@ -43,8 +50,8 @@ export function Avatar({
       style={{
         width: size,
         height: size,
-        backgroundColor: c.soft,
-        color: c.onSoft,
+        backgroundColor: c.bg,
+        color: c.fg,
         fontSize: size * 0.4,
       }}
     >

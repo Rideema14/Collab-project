@@ -9,12 +9,11 @@ import { SessionSync } from '@/features/shell/SessionSync';
 import { AppSidebar } from './AppSidebar';
 import { AppTopbar } from './AppTopbar';
 import { CommandMenu } from './CommandMenu';
-import { AiButton } from './AiButton';
 
 /**
- * The authenticated platform shell: a floating glass sidebar + glass topbar +
- * ⌘K palette, wrapped around animated route content. The ambient aurora
- * (body::before in globals.css) shows through the translucent surfaces.
+ * The authenticated platform shell: a floating sidebar + topbar + ⌘K palette,
+ * wrapped around animated route content. Opaque surfaces throughout (no
+ * glass/blur) for a clean, enterprise-flat chrome.
  */
 export function PlatformShell({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
@@ -45,14 +44,13 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
                 always-mounted shell, and no exit-wait delay on every navigation. */}
             <div
               key={pathname}
-              className="glass h-full animate-fade-in overflow-hidden rounded-2xl shadow-glass"
+              className="h-full animate-fade-in overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
             >
               {children}
             </div>
           </main>
         </div>
         <CommandMenu />
-        <AiButton />
       </div>
     </TooltipProvider>
   );

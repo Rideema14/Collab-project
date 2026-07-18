@@ -24,10 +24,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
  * variant × size × state. There is no second button component anywhere.
  */
 const VARIANT_CLASSES: Record<Variant, string> = {
-  primary: 'bg-primary text-primary-fg hover:bg-primary-hover border-transparent',
-  secondary: 'bg-surface text-text border-border-strong hover:bg-surface-muted',
+  primary: 'bg-primary text-primary-fg hover:bg-primary-hover border-transparent shadow-sm hover:shadow-md',
+  secondary: 'bg-surface text-text border-border-strong hover:bg-surface-muted shadow-sm',
   ghost: 'bg-transparent text-text-muted border-transparent hover:bg-surface-muted hover:text-text',
-  danger: 'bg-danger text-primary-fg hover:bg-danger-hover border-transparent',
+  danger: 'bg-danger text-primary-fg hover:bg-danger-hover border-transparent shadow-sm hover:shadow-md',
 };
 
 const SIZE_CLASSES: Record<Size, string> = {
@@ -48,8 +48,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       // Tells assistive tech the control is working, not broken.
       aria-busy={loading || undefined}
       className={clsx(
-        'inline-flex items-center justify-center rounded-md border font-medium transition-colors',
-        'disabled:cursor-not-allowed disabled:opacity-55',
+        'inline-flex items-center justify-center rounded-pill border font-semibold transition-all duration-150 ease-out active:scale-[0.97]',
+        'disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100',
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
         fullWidth && 'w-full',

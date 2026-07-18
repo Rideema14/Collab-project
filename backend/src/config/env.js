@@ -19,4 +19,9 @@ module.exports = {
   groqApiKey: process.env.GROQ_API_KEY || null,
   groqModel: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
   groqTranscribeModel: process.env.GROQ_TRANSCRIBE_MODEL || 'whisper-large-v3-turbo',
+
+  // Optional — the external Meeting Bot service (backend/meeting.py, port 8000)
+  // that actually joins the call. Unset, everything else still works and only
+  // "Deploy Bot" returns a clean 503, the same way voice degrades.
+  meetingBotUrl: (process.env.MEETING_BOT_URL || 'http://localhost:8000').replace(/\/+$/, ''),
 };

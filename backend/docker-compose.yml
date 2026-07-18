@@ -1,0 +1,27 @@
+services:
+  livekit-server:
+    image: livekit/livekit-server:v1.8
+    container_name: livekit-server
+    restart: always
+    ports:
+      - "7880:7880"       
+      # Shrink this range from 60000 down to 50050
+      - "50000-50050:50000-50050/udp" 
+    command: --config /etc/livekit.yaml
+    volumes:
+      # The config file on disk is livekit.yml (mounted to the path the server reads).
+      - ./livekit.yml:/etc/livekit.yaml
+
+  # 2. Your Custom Voice Agent Worker (answering only — transcripts are taken
+  #    server-side by the bridge in server.py, not here).
+  livekit-agent:
+    build: .
+    container_name: livekit-voice-agent
+    restart: always
+    # All config (LIVEKIT_URL/KEY/SECRET, DEEPGRAM_API_KEY, GROQ_API_KEY,
+    # GROQ_MODEL, ...) comes from your real .env. IMPORTANT: the agent MUST use
+    # the SAME LiveKit as server.py/the bridge, or it won't join the meeting.
+    # Your .env points at LiveKit Cloud, so the agent connects there too — the
+    # local livekit-server container above is NOT used in that case.
+    env_file:
+      - .env

@@ -36,7 +36,6 @@ import {
   selectLists,
   selectSpaces,
 } from '@/store/selectors';
-import { statusColors } from '@/lib/domain/status-color';
 import { useTheme } from '@/lib/theme-context';
 import { Kbd } from '@/components/ui/Misc';
 import { Magnetic } from '@/components/ui/Motion';
@@ -56,12 +55,12 @@ export function AppTopbar() {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="glass z-dropdown flex h-14 shrink-0 items-center gap-2 rounded-2xl px-3 shadow-glass sm:px-4">
+    <header className="z-dropdown flex h-14 shrink-0 items-center gap-2 rounded-2xl border border-border bg-surface px-3 shadow-sm sm:px-4">
       <button
         type="button"
         onClick={() => dispatch(setMobileSidebarOpen(true))}
         aria-label="Open sidebar"
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-text-muted transition-colors hover:bg-glass-border hover:text-text md:hidden"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-btn text-text-muted transition-colors hover:bg-surface-muted hover:text-text md:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -71,20 +70,20 @@ export function AppTopbar() {
       <button
         type="button"
         onClick={() => dispatch(toggleCommandPalette())}
-        className="group ml-2 hidden h-9 items-center gap-2 rounded-xl border border-glass-border bg-glass px-3 text-sm text-text-subtle transition-colors hover:border-border-strong lg:flex lg:w-72"
+        className="group ml-2 hidden h-9 items-center gap-2 rounded-pill border border-border bg-surface-muted px-4 text-sm text-text-subtle transition-colors hover:border-border-strong lg:flex lg:w-72"
       >
         <Search className="h-4 w-4" />
         <span className="flex-1 text-left">Search or jump to…</span>
         <Kbd>⌘K</Kbd>
       </button>
 
-      <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+      <div className="ml-auto flex items-center gap-1 sm:gap-2">
         {/* Search icon-only on smaller screens */}
         <button
           type="button"
           onClick={() => dispatch(toggleCommandPalette())}
           aria-label="Search"
-          className="grid h-9 w-9 place-items-center rounded-xl text-text-muted transition-colors hover:bg-glass-border hover:text-text lg:hidden"
+          className="grid h-9 w-9 place-items-center rounded-btn text-text-muted transition-colors hover:bg-surface-muted hover:text-text lg:hidden"
         >
           <Search className="h-[18px] w-[18px]" />
         </button>
@@ -101,7 +100,7 @@ export function AppTopbar() {
             type="button"
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            className="grid h-9 w-9 place-items-center rounded-xl text-text-muted transition-colors hover:bg-glass-border hover:text-text"
+            className="grid h-9 w-9 place-items-center rounded-btn text-text-muted transition-colors hover:bg-surface-muted hover:text-text"
           >
             {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
           </button>
@@ -115,7 +114,7 @@ export function AppTopbar() {
 }
 
 function Divider() {
-  return <span aria-hidden className="mx-1 hidden h-6 w-px bg-glass-border sm:block" />;
+  return <span aria-hidden className="mx-1 hidden h-6 w-px bg-border sm:block" />;
 }
 
 /**
@@ -172,7 +171,7 @@ function CreateMenu() {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="hidden h-9 items-center gap-1.5 rounded-xl bg-gradient-brand px-3 text-sm font-medium text-white shadow-glow transition-opacity hover:opacity-90 sm:flex"
+            className="hidden h-9 items-center gap-1.5 rounded-pill bg-primary px-4 text-sm font-semibold text-primary-fg shadow-sm transition-all hover:shadow-md hover:opacity-95 sm:flex"
           >
             <Plus className="h-4 w-4" />
             New
@@ -217,9 +216,11 @@ const STATIC_CRUMBS: Record<string, { label: string; icon: typeof Home }> = {
 };
 
 /**
- * Live location context — workspace → current page (or space → list). Uses a
- * colored status dot for lists/spaces rather than an emoji, and real chevron
- * separators, so the bar reads like a proper app breadcrumb.
+ * Live location context — workspace → current page (or space → list). Every
+ * crumb (including the workspace name) shares the same font size and the same
+ * base color, with a single-color icon instead of a status-hued dot; only the
+ * current page gets bolder, never a different color or size, so the path
+ * reads as one calm, consistent trail with real chevron separators.
  */
 function Breadcrumb() {
   const pathname = usePathname();
@@ -229,16 +230,13 @@ function Breadcrumb() {
   const spaces = useAppSelector(selectSpaces);
   const wsName = (workspaces.find((w) => w.id === activeWsId) ?? workspaces[0])?.name ?? 'Workspace';
 
-  let trail: { label: string; dot?: string; icon?: typeof Home }[] = [];
+  let trail: { label: string; icon: typeof Home }[] = [];
   const listMatch = pathname.match(/^\/list\/(.+)$/);
   if (listMatch) {
     const list = lists.find((l) => l.id === listMatch[1]);
     const space = list ? spaces.find((s) => s.id === list.spaceId) : undefined;
-    if (space) trail.push({ label: space.name, dot: statusColors(space.hue).solid });
-    trail.push({
-      label: list?.name ?? 'List',
-      dot: list ? statusColors(space?.hue ?? 211).solid : undefined,
-    });
+    if (space) trail.push({ label: space.name, icon: Box });
+    trail.push({ label: list?.name ?? 'List', icon: Hash });
   } else {
     const crumb = STATIC_CRUMBS[pathname] ?? { label: 'Home', icon: Home };
     trail = [{ label: crumb.label, icon: crumb.icon }];
@@ -248,26 +246,19 @@ function Breadcrumb() {
 
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
-      <span className="hidden max-w-[9rem] shrink-0 truncate font-medium text-text-muted md:inline">{wsName}</span>
+      <span className="hidden max-w-[9rem] shrink-0 truncate text-text md:inline">{wsName}</span>
       {trail.map((crumb, i) => (
         <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-1.5">
           <ChevronRight className="hidden h-3.5 w-3.5 shrink-0 text-text-subtle md:inline" />
-          {crumb.dot ? (
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: crumb.dot }} />
-          ) : crumb.icon ? (
-            <crumb.icon className="h-4 w-4 shrink-0 text-text-subtle" />
-          ) : null}
-          <span
-            className={cnCrumb(crumb === last)}
-          >
-            {crumb.label}
-          </span>
+          <crumb.icon className="h-4 w-4 shrink-0 text-text-subtle" />
+          <span className={cnCrumb(crumb === last)}>{crumb.label}</span>
         </span>
       ))}
     </nav>
   );
 }
 
+/** Same size, same font, same color for every crumb — only the current page gets a touch bolder, never a different color or size. */
 function cnCrumb(isLast: boolean): string {
-  return isLast ? 'truncate font-semibold text-text' : 'truncate text-text-muted';
+  return isLast ? 'truncate font-semibold text-text' : 'truncate text-text';
 }

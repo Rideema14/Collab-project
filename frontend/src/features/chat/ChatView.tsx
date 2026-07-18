@@ -287,7 +287,7 @@ export function ChatView() {
               onClick={send}
               disabled={!draft.trim()}
               aria-label="Send message"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-brand text-white shadow-glow transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-brand text-primary-fg shadow-glow transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
             </button>
@@ -356,7 +356,7 @@ function AnnounceModal({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={broadcast}
             disabled={!body.trim()}
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3 py-1.5 text-sm font-medium text-white shadow-glow transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3 py-1.5 text-sm font-medium text-primary-fg shadow-glow transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             <Megaphone className="h-4 w-4" /> Send to everyone
           </button>
@@ -400,7 +400,7 @@ function RecipientPicker() {
         title="Direct message"
         className={cn(
           'grid h-8 w-8 place-items-center rounded-lg transition-colors',
-          open ? 'bg-primary-soft text-primary' : 'text-text-subtle hover:bg-glass-border hover:text-text'
+          open ? 'bg-primary-selected text-primary-on-selected' : 'text-text-subtle hover:bg-surface-muted hover:text-text'
         )}
       >
         <AtSign className="h-4 w-4" />
@@ -469,7 +469,7 @@ function RailButton({
       onClick={onClick}
       className={cn(
         'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
-        active ? 'bg-primary-soft font-medium text-primary' : 'text-text-muted hover:bg-glass-border hover:text-text'
+        active ? 'bg-primary-selected font-medium text-primary-on-selected' : 'text-text-muted hover:bg-surface-muted hover:text-text'
       )}
     >
       {leading}

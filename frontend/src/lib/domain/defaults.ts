@@ -15,11 +15,13 @@ import type { Priority, Role, StatusDef, StatusSet } from './types';
  */
 export function defaultStatusSet(id: string): StatusSet {
   const statuses: StatusDef[] = [
+    // Hues are retained as data but render as ORANGE shades (see status-color.ts);
+    // each stored hue only picks a slightly different shade step per status.
     { id: `${id}-backlog`, name: 'Backlog', hue: 220, group: 'not_started', order: 0, backendStatus: null },
-    { id: `${id}-todo`, name: 'To Do', hue: 199, group: 'not_started', order: 1, backendStatus: 'To Do' },
-    { id: `${id}-progress`, name: 'In Progress', hue: 45, group: 'active', order: 2, backendStatus: 'In Progress' },
+    { id: `${id}-todo`, name: 'To Do', hue: 210, group: 'not_started', order: 1, backendStatus: 'To Do' },
+    { id: `${id}-progress`, name: 'In Progress', hue: 213, group: 'active', order: 2, backendStatus: 'In Progress' },
     { id: `${id}-review`, name: 'In Review', hue: 262, group: 'active', order: 3, backendStatus: null },
-    { id: `${id}-done`, name: 'Done', hue: 142, group: 'done', order: 4, backendStatus: 'Done' },
+    { id: `${id}-done`, name: 'Done', hue: 150, group: 'done', order: 4, backendStatus: 'Done' },
   ];
   return { id, name: 'Default', statuses };
 }
@@ -53,7 +55,7 @@ export function defaultRoles(): Role[] {
     {
       id: 'role-admin',
       name: 'Admin',
-      color: '#2563eb',
+      color: '#db441e',
       system: true,
       permissions: [
         'task.create',
@@ -68,14 +70,14 @@ export function defaultRoles(): Role[] {
     {
       id: 'role-member',
       name: 'Member',
-      color: '#16a34a',
+      color: '#71717a',
       system: true,
       permissions: ['task.create', 'task.edit', 'task.delete'],
     },
     {
       id: 'role-guest',
       name: 'Guest',
-      color: '#64748b',
+      color: '#a1a1aa',
       system: true,
       permissions: [],
     },

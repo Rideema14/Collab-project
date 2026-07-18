@@ -36,6 +36,8 @@ const config: Config = {
       'primary-soft': 'var(--color-primary-soft)',
       'primary-fg': 'var(--color-primary-fg)',
       'primary-on-soft': 'var(--color-primary-on-soft)',
+      'primary-selected': 'var(--color-primary-selected)',
+      'primary-on-selected': 'var(--color-primary-on-selected)',
 
       accent: 'var(--color-accent)',
       'accent-soft': 'var(--color-accent-soft)',
@@ -61,13 +63,22 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        // Display grotesk for headlines and large numerals — see layout.tsx.
+        display: ['var(--font-display)', 'var(--font-sans)', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         sm: 'var(--radius-sm)',
         md: 'var(--radius-md)',
         lg: 'var(--radius-lg)',
+        btn: 'var(--radius-btn)',
+        pill: 'var(--radius-pill)',
         xl: 'var(--radius-xl)',
         '2xl': 'var(--radius-2xl)',
+      },
+      transitionDuration: {
+        fast: 'var(--dur-fast)',
+        med: 'var(--dur-med)',
+        slow: 'var(--dur-slow)',
       },
       boxShadow: {
         sm: 'var(--shadow-sm)',

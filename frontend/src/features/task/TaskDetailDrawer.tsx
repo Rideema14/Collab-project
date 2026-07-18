@@ -109,7 +109,7 @@ function Body({ listId, taskId }: { listId: string; taskId: number }) {
             saveTaskAsTemplate(taskId, task.title, `${task.title} template`);
             notify('success', 'Saved as a task template');
           }}
-          className="shrink-0 whitespace-nowrap rounded-md border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-glass-border hover:text-text"
+          className="shrink-0 whitespace-nowrap rounded-md border border-border px-2 py-1 text-xs text-text-muted transition-colors hover:bg-surface-muted hover:text-text"
         >
           Save as template
         </button>
@@ -240,7 +240,7 @@ function DeleteFooter({ task, onDelete }: { task: TaskVM; onDelete: () => void |
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   return (
-    <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t border-border bg-surface/90 px-4 py-3 backdrop-blur">
+    <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t border-border bg-surface px-4 py-3">
       <span className="text-xs text-text-subtle">Updated {relativeTime(task.updatedAt)}</span>
       {confirming ? (
         <div className="flex items-center gap-2">
@@ -728,7 +728,7 @@ function TimePanel({ taskId }: { taskId: number }) {
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-semibold text-text">Total: {formatDuration(total)}</span>
         {isRunningThis ? (
-          <button type="button" onClick={stop} className="inline-flex items-center gap-1.5 rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-white">
+          <button type="button" onClick={stop} className="inline-flex items-center gap-1.5 rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-primary-fg">
             <Square className="h-3.5 w-3.5" /> Stop timer
           </button>
         ) : (

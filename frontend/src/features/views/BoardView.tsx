@@ -37,10 +37,11 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { openTask } from '@/store/slices/uiSlice';
 import { setOrder, addSubtask } from '@/store/slices/tasksSlice';
 import { statusColors } from '@/lib/domain/status-color';
+import { getStatusIcon } from '@/lib/domain/status-icon';
 import { useTheme } from '@/lib/theme-context';
 import { cn } from '@/lib/design/cn';
 import type { TaskVM } from '@/lib/domain/types';
-import { TaskCardContent } from '@/features/task/TaskCardContent';
+import { TaskCardContent, resolveTaskPalette } from '@/features/task/TaskCardContent';
 import { useListData, type StatusColumn } from '@/features/list/useListData';
 import { useListActions } from '@/features/list/useListActions';
 import { useStatusActions } from '@/features/statuses/useStatusActions';
@@ -207,6 +208,7 @@ const BoardColumn = memo(function BoardColumn({
     isDragging: colIsDragging,
   } = useSortable({ id: `${COL_PREFIX}${column.status.id}` });
   const c = statusColors(column.status.hue, theme);
+  const StatusIcon = getStatusIcon(column.status);
   const [adding, setAdding] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [recoloring, setRecoloring] = useState(false);
@@ -228,21 +230,20 @@ const BoardColumn = memo(function BoardColumn({
       style={{
         transform: CSS.Translate.toString(colTransform),
         transition: colTransition,
-        background: theme === 'light' ? '#e5e8ef' : 'var(--color-surface-muted)',
+        background: 'var(--color-surface-muted)',
       }}
       className={cn(
-        'flex w-[288px] shrink-0 animate-scale-in flex-col rounded-2xl border border-glass-border',
+        'flex w-[288px] shrink-0 animate-scale-in flex-col rounded-2xl border border-border-strong',
         colIsDragging && 'opacity-50'
       )}
     >
       <header
         {...(renaming ? {} : colAttributes)}
         {...(renaming ? {} : colListeners)}
-        className="flex cursor-grab items-center gap-2 rounded-t-2xl px-4 pt-4 pb-3 touch-none active:cursor-grabbing"
-        style={{ background: `linear-gradient(180deg, ${c.soft}, transparent)` }}
+        className="flex cursor-grab items-center gap-2 rounded-t-2xl border-b border-border px-4 pt-4 pb-3 touch-none active:cursor-grabbing"
       >
         <GripVertical className="h-3.5 w-3.5 shrink-0 text-text-subtle/50" aria-hidden />
-        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.solid }} />
+        <StatusIcon className="h-4 w-4 shrink-0" style={{ color: c.solid }} strokeWidth={2} aria-hidden />
         {renaming ? (
           // eslint-disable-next-line jsx-a11y/no-autofocus
           <input
@@ -258,7 +259,7 @@ const BoardColumn = memo(function BoardColumn({
               }
             }}
             onBlur={commitRename}
-            className="min-w-0 flex-1 rounded border border-primary bg-white/80 px-1 text-sm font-semibold text-text outline-none"
+            className="min-w-0 flex-1 rounded border border-primary bg-surface px-1 text-sm font-semibold text-text outline-none"
           />
         ) : (
           <h3 className="text-sm font-semibold text-text">{column.status.name}</h3>
@@ -266,9 +267,8 @@ const BoardColumn = memo(function BoardColumn({
         <span
           className={cn(
             'rounded-md px-1.5 py-0.5 text-[11px] font-medium',
-            overWip ? 'bg-danger-soft text-danger-fg' : undefined
+            overWip ? 'bg-danger-soft text-danger-fg' : 'bg-surface text-text-muted'
           )}
-          style={overWip ? undefined : { backgroundColor: c.soft, color: c.onSoft }}
           title={wipLimit != null ? `WIP limit ${wipLimit}` : undefined}
         >
           {count}
@@ -279,7 +279,7 @@ const BoardColumn = memo(function BoardColumn({
           onClick={() => setAdding(true)}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={`Add task to ${column.status.name}`}
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-text-subtle transition-colors hover:bg-glass-border hover:text-text"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-text-subtle transition-colors hover:bg-surface-muted hover:text-text"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -290,6 +290,7 @@ const BoardColumn = memo(function BoardColumn({
           onRecolor={() => setRecoloring(true)}
           onArchive={() => setArchived(column.status.id, true)}
           onDelete={() => remove(column.status.id)}
+          accentColor={c.solid}
         />
         {recoloring && (
           <Popover open onOpenChange={(o) => !o && setRecoloring(false)}>
@@ -303,41 +304,49 @@ const BoardColumn = memo(function BoardColumn({
         )}
       </header>
 
-      <div
-        ref={setNodeRef}
-        className={cn(
-          'flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-3 transition-colors',
-          isOver && 'rounded-b-2xl bg-primary-soft/20 ring-1 ring-inset ring-[color:var(--color-primary)]/30'
-        )}
-      >
-        {adding && (
-          <QuickAddTask
-            listId={listId}
-            statusId={column.status.id}
-            open={adding}
-            onOpenChange={setAdding}
-            hideTrigger
-          />
-        )}
-        <SortableContext items={column.tasks.map((t) => String(t.id))} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2.5">
-            {column.tasks.map((task) => (
-              <SortableCard
-                key={task.id}
-                task={task}
-                commentCount={commentsByTask[task.id]?.length ?? 0}
-                onOpen={onOpen}
-                onDelete={onDelete}
-                onEditTitle={onEditTitle}
-                onAddSubtask={onAddSubtask}
-              />
-            ))}
-          </div>
-        </SortableContext>
-        {count === 0 && !adding && (
-          <p className="px-1 py-6 text-center text-xs text-text-subtle">No tasks yet</p>
-        )}
-        <QuickAddTask listId={listId} statusId={column.status.id} />
+      <div className="relative min-h-0 flex-1">
+        {/* Faint status-colored watermark — sits behind the task list; opaque task
+            cards cover it from the top down as the column fills up. */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+          <StatusIcon style={{ color: c.solid }} className="h-28 w-28 opacity-[0.09]" strokeWidth={1.25} />
+        </div>
+
+        <div
+          ref={setNodeRef}
+          className={cn(
+            'relative h-full space-y-2.5 overflow-y-auto px-3 pb-3 pt-3 transition-colors',
+            isOver && 'rounded-b-2xl bg-primary-soft/20 ring-1 ring-inset ring-[color:var(--color-primary)]/30'
+          )}
+        >
+          {adding && (
+            <QuickAddTask
+              listId={listId}
+              statusId={column.status.id}
+              open={adding}
+              onOpenChange={setAdding}
+              hideTrigger
+            />
+          )}
+          <SortableContext items={column.tasks.map((t) => String(t.id))} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2.5">
+              {column.tasks.map((task) => (
+                <SortableCard
+                  key={task.id}
+                  task={task}
+                  commentCount={commentsByTask[task.id]?.length ?? 0}
+                  onOpen={onOpen}
+                  onDelete={onDelete}
+                  onEditTitle={onEditTitle}
+                  onAddSubtask={onAddSubtask}
+                />
+              ))}
+            </div>
+          </SortableContext>
+          {count === 0 && !adding && (
+            <p className="px-1 py-6 text-center text-xs text-text-subtle">No tasks yet</p>
+          )}
+          <QuickAddTask listId={listId} statusId={column.status.id} />
+        </div>
       </div>
     </section>
   );
@@ -362,6 +371,8 @@ const SortableCard = memo(function SortableCard({
     id: String(task.id),
     data: { statusId: task.status.id },
   });
+  const { theme } = useTheme();
+  const cardAccent = resolveTaskPalette(task, theme).rail;
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -409,6 +420,7 @@ const SortableCard = memo(function SortableCard({
           onDelete={() => onDelete(task.id, task.title)}
           onEdit={startEdit}
           onAddSubtask={() => setAddingSubtask(true)}
+          accentColor={cardAccent}
         />
       </div>
       {addingSubtask && (
@@ -432,6 +444,7 @@ function ColumnMenu({
   onRecolor,
   onArchive,
   onDelete,
+  accentColor,
 }: {
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
@@ -439,6 +452,8 @@ function ColumnMenu({
   onRecolor: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  /** Column's own status color — used to tint the Delete/Trash icon so it matches the column instead of a generic red. */
+  accentColor: string;
 }) {
   return (
     <DropdownMenu>
@@ -447,7 +462,7 @@ function ColumnMenu({
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
           aria-label="Status settings"
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-text-subtle transition-colors hover:bg-glass-border hover:text-text"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-text-subtle transition-colors hover:bg-surface-muted hover:text-text"
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>
@@ -469,7 +484,7 @@ function ColumnMenu({
         <DropdownMenuItem onSelect={onArchive}>
           <Archive className="h-4 w-4" /> Archive
         </DropdownMenuItem>
-        <DropdownMenuItem destructive onSelect={onDelete}>
+        <DropdownMenuItem onSelect={onDelete} style={{ color: accentColor }}>
           <Trash2 className="h-4 w-4" /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -483,11 +498,14 @@ function CardMenu({
   onDelete,
   onEdit,
   onAddSubtask,
+  accentColor,
 }: {
   onOpen: () => void;
   onDelete: () => void;
   onEdit: () => void;
   onAddSubtask: () => void;
+  /** The card's own accent color — used to tint its Delete/Trash icon instead of a generic red. */
+  accentColor: string;
 }) {
   return (
     <div
@@ -500,7 +518,7 @@ function CardMenu({
           <button
             type="button"
             aria-label="Task actions"
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-black/10 bg-white/90 text-[#64748b] shadow-sm backdrop-blur transition-colors hover:bg-white hover:text-[#334155] data-[state=open]:opacity-100"
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-border-strong bg-surface text-text-muted shadow-sm transition-colors hover:bg-surface-muted hover:text-text data-[state=open]:opacity-100"
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
@@ -514,7 +532,7 @@ function CardMenu({
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onOpen}>Open</DropdownMenuItem>
-          <DropdownMenuItem destructive onSelect={onDelete}>
+          <DropdownMenuItem onSelect={onDelete} style={{ color: accentColor }}>
             <Trash2 className="h-4 w-4" /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -558,7 +576,7 @@ function AddStatusButton({ listId }: { listId: string }) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex h-11 w-[288px] shrink-0 items-center gap-2 self-start rounded-2xl border border-dashed border-border-strong px-4 text-sm text-text-muted transition-colors hover:bg-glass hover:text-text"
+          className="flex h-11 w-[288px] shrink-0 items-center gap-2 self-start rounded-2xl border border-dashed border-border-strong px-4 text-sm text-text-muted transition-colors hover:bg-surface-muted hover:text-text"
         >
           <Plus className="h-4 w-4" /> Add / manage statuses
         </button>
@@ -585,5 +603,3 @@ export function StatusManagerButton({ listId }: { listId: string }) {
     </Popover>
   );
 }
-
-

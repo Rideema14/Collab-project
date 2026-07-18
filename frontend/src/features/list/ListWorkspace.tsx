@@ -309,7 +309,7 @@ function FiltersButton({
           <Filter className="h-3.5 w-3.5" />
           Filter
           {activeCount > 0 && (
-            <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-white">
+            <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-primary-fg">
               {activeCount}
             </span>
           )}

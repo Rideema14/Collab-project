@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Space_Grotesk } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth-context';
 import { ThemeProvider, THEME_INIT_SCRIPT } from '@/lib/theme-context';
 import { ToastProvider } from '@/lib/toast-context';
@@ -20,6 +20,20 @@ const inter = Inter({
   variable: '--font-sans',
 });
 
+/*
+ * Display face for headlines and large numerals. A tight, confident grotesk that
+ * carries the "professional, not templated" personality the plain body face can't.
+ * Chosen for a data app specifically: Space Grotesk ships true tabular figures, so
+ * KPI/stat/table numbers (all tabular-nums) stay column-aligned. Self-hosted by
+ * next/font at build time — no runtime request, font-display: swap.
+ */
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  weight: ['500', '600', '700'],
+  variable: '--font-display',
+});
+
 export const metadata: Metadata = {
   title: {
     default: 'Task Board — Kuberya',
@@ -37,8 +51,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
-    { media: '(prefers-color-scheme: dark)', color: '#020617' },
+    { media: '(prefers-color-scheme: light)', color: '#f7f8fa' },
+    { media: '(prefers-color-scheme: dark)', color: '#080e11' },
   ],
 };
 
@@ -53,7 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className={`${inter.variable} font-sans`}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`}>
         <StoreProvider>
           <ThemeProvider>
             <ToastProvider>

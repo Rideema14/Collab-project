@@ -223,6 +223,25 @@ async function getDeployment(meetingId) {
   return rows[0] || null;
 }
 
+async function getResult(meetingId) {
+  const { rows } = await pool.query(
+    'SELECT meeting_id, summary, transcript, ended_at FROM meeting_results WHERE meeting_id = $1',
+    [meetingId]
+  );
+  return rows[0] || null;
+}
+
+async function upsertResult(meetingId, { summary, transcript }) {
+  const { rows } = await pool.query(
+    `INSERT INTO meeting_results (meeting_id, summary, transcript, ended_at)
+     VALUES ($1, $2, $3, now())
+     ON CONFLICT (meeting_id) DO UPDATE SET summary = $2, transcript = $3, ended_at = now()
+     RETURNING meeting_id, summary, transcript, ended_at`,
+    [meetingId, summary ?? null, transcript ?? null]
+  );
+  return rows[0];
+}
+
 async function createEmailLog({ meetingId, recipientEmail, subject, provider }) {
   const { rows } = await pool.query(
     `INSERT INTO email_logs (meeting_id, recipient_email, subject, provider, status)
@@ -286,6 +305,8 @@ module.exports = {
   upsertDeployment,
   markDeployed,
   getDeployment,
+  getResult,
+  upsertResult,
   createEmailLog,
   updateEmailLog,
   setParticipantInviteStatus,

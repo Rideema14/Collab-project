@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, Copy, Rocket, Shield } from 'lucide-react';
+import { Fragment, useState } from 'react';
+import { Check, Copy, FileText, ListChecks, Rocket, Shield, Sparkles } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectMyPermissions } from '@/store/selectors';
 import {
@@ -14,7 +14,7 @@ import { useToast } from '@/lib/toast-context';
 import { relativeTime } from '@/lib/format';
 import { cn } from '@/lib/design/cn';
 import { Button } from '@/components/ui/Button';
-import type { EmailDeliveryStatus, Meeting, MeetingContextPayload } from '@/lib/types';
+import type { EmailDeliveryStatus, Meeting, MeetingContextPayload, MeetingResult } from '@/lib/types';
 
 /**
  * Shared across all three /meetings routes (overview, schedule, detail) —
@@ -50,13 +50,57 @@ export function formatMeetingTime(iso: string): string {
 export const STATUS_LABEL: Record<Meeting['status'], string> = {
   scheduled: 'Scheduled',
   context_ready: 'Context ready',
+  completed: 'Completed',
   cancelled: 'Cancelled',
 };
 export const STATUS_CLASS: Record<Meeting['status'], string> = {
   scheduled: 'bg-primary-soft text-primary',
   context_ready: 'bg-success-soft text-success-fg',
+  completed: 'bg-success-soft text-success-fg',
   cancelled: 'bg-surface-muted text-text-subtle',
 };
+
+/**
+ * The agenda the bot runs for a given meeting type, for display on the
+ * completed-meeting view.
+ *
+ * Source of truth is backend/meeting.py (DEFAULT_AGENDA_BY_TYPE / GENERIC_AGENDA)
+ * — that's what the bot actually runs; this mirrors it for display only. Keep in
+ * step if the backend agendas change. 'Custom' and any unknown type fall back to
+ * the generic agenda, exactly as the backend does.
+ */
+const GENERIC_AGENDA = [
+  'Introductions and quick round of who everyone is.',
+  'Progress or updates since the last meeting.',
+  'Any blockers or issues the team needs help with.',
+  'Next steps or action items coming out of the discussion.',
+  'Recap of the key points before wrapping up.',
+];
+const AGENDA_BY_TYPE: Record<string, string[]> = {
+  'Daily Standup': [
+    'Each attendee shares progress since yesterday.',
+    'What each attendee is working on today.',
+    'Any blockers, and who can unblock them.',
+    'Recap of blockers before wrapping up.',
+  ],
+  'Weekly Review': [
+    'What each attendee completed this week.',
+    'What slipped or did not get finished, and why.',
+    'Anything blocking progress into next week.',
+    "Each attendee's main focus for next week.",
+    'Recap of the key points before wrapping up.',
+  ],
+  'Sprint Review': [
+    'Confirm what the sprint set out to deliver.',
+    'Walkthrough of what was actually completed.',
+    'What was not finished and carries over.',
+    'Feedback or concerns about what was delivered.',
+    'Recap of the outcomes before wrapping up.',
+  ],
+};
+export function plannedAgendaForType(type: Meeting['type']): string[] {
+  return AGENDA_BY_TYPE[type] ?? GENERIC_AGENDA;
+}
 
 // `delivered` is included for a future webhook-capable provider — the
 // backend never sets it today, since EmailJS has no delivery confirmation.
@@ -227,9 +271,14 @@ export function ContextSection({ meetingId }: { meetingId: number }) {
                 {deployment?.deployed ? `Deployed ${relativeTime(deployment.deployedAt!)}` : 'Not deployed'}
               </span>
               <CopyButton text={data.payload.narrative} />
-              <Button size="sm" loading={deploying} onClick={handleDeploy}>
+              <Button
+                size="sm"
+                loading={deploying}
+                disabled={deployment?.deployed}
+                onClick={handleDeploy}
+              >
                 <Rocket className="h-4 w-4" />
-                Deploy Bot
+                {deployment?.deployed ? 'Bot Deployed' : 'Deploy Bot'}
               </Button>
             </div>
           </div>
@@ -237,6 +286,191 @@ export function ContextSection({ meetingId }: { meetingId: number }) {
           <pre className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-muted/40 p-4 font-mono text-xs leading-relaxed text-text">
             {data.payload.narrative}
           </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Renders `**bold**` spans within a single line of the AI summary; leaves the rest as plain text. */
+function inlineMarkdown(text: string): React.ReactNode {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') ? (
+      <strong key={i} className="font-semibold text-text">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    )
+  );
+}
+
+/**
+ * Minimal renderer for the bot's markdown summary — it only ever emits `##`
+ * headings, `-`/`*` bullets and short paragraphs, so a tiny line-based parser
+ * covers it without pulling in a markdown dependency (see AGENTS.md: avoid
+ * unnecessary abstractions). Anything unrecognised falls through as a paragraph.
+ */
+function SummaryMarkdown({ text }: { text: string }) {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const blocks: React.ReactNode[] = [];
+  let bullets: string[] = [];
+
+  const flushBullets = () => {
+    if (bullets.length === 0) return;
+    blocks.push(
+      <ul key={`ul-${blocks.length}`} className="ml-4 list-disc space-y-1 text-sm text-text-muted">
+        {bullets.map((b, i) => (
+          <li key={i}>{inlineMarkdown(b)}</li>
+        ))}
+      </ul>
+    );
+    bullets = [];
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    const bullet = line.match(/^[-*]\s+(.*)$/);
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+
+    if (bullet) {
+      bullets.push(bullet[1]);
+    } else if (heading) {
+      flushBullets();
+      blocks.push(
+        <h4 key={`h-${blocks.length}`} className="text-sm font-semibold text-text">
+          {inlineMarkdown(heading[2])}
+        </h4>
+      );
+    } else if (line) {
+      flushBullets();
+      blocks.push(
+        <p key={`p-${blocks.length}`} className="text-sm text-text-muted">
+          {inlineMarkdown(line)}
+        </p>
+      );
+    }
+  }
+  flushBullets();
+
+  return <div className="space-y-2">{blocks}</div>;
+}
+
+/** Pulls "Duration: 1h 2m 3s" out of the transcript footer written by transcript.py, if present. */
+function parseDuration(transcript: string | null | undefined): string | null {
+  const match = transcript?.match(/^Duration:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+function OverviewStat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface-muted/40 p-3">
+      <p className="text-[10px] uppercase tracking-wide text-text-subtle">{label}</p>
+      <p className="mt-0.5 text-lg font-semibold text-text">{value}</p>
+      {hint && <p className="text-[11px] text-text-subtle">{hint}</p>}
+    </div>
+  );
+}
+
+/**
+ * Post-meeting view, shown on the detail page once a bot has been deployed.
+ *
+ * Presentational only — the parent owns the polling query (so it can also switch
+ * the page to its "completed" layout and refresh the meeting). While the meeting
+ * is still running (`result.ended` false) it shows a live "in progress" banner;
+ * once it ends it shows the agenda that ran, invited-vs-spoke stats, the AI
+ * summary (which includes the follow-up action items), and the full transcript.
+ */
+export function MeetingSummarySection({
+  meeting,
+  result,
+  loading,
+}: {
+  meeting: Meeting;
+  result?: MeetingResult;
+  loading: boolean;
+}) {
+  const ended = result?.ended ?? false;
+  const agenda = plannedAgendaForType(meeting.type);
+  const invited = meeting.participants.length;
+  const speakers = result?.speakers ?? [];
+  const duration = parseDuration(result?.transcript);
+
+  return (
+    <div className="space-y-4 border-t border-border pt-4">
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-primary" />
+        <p className="text-sm font-semibold text-text">
+          {ended ? 'Meeting summary' : 'Meeting in progress'}
+        </p>
+      </div>
+
+      {!ended && (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted/40 px-3 py-3 text-sm text-text-subtle">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+          {loading
+            ? 'Checking for the meeting summary…'
+            : 'The bot is in the call — the AI summary will appear here automatically once the meeting ends.'}
+        </div>
+      )}
+
+      {ended && (
+        <div className="space-y-4">
+          {result?.endedAt && (
+            <p className="text-xs text-text-subtle">
+              Ended {relativeTime(result.endedAt)}
+              {duration ? ` · lasted ${duration}` : ''}
+            </p>
+          )}
+
+          {/* Attendance stats. "Invited" is exact; "spoke" is the honest proxy we
+              have for participation — see MeetingResult.speakers. */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <OverviewStat label="Invited" value={invited} />
+            <OverviewStat
+              label="Spoke"
+              value={speakers.length}
+              hint={speakers.length ? speakers.join(', ') : undefined}
+            />
+            <OverviewStat label="Type" value={<span className="text-sm">{meeting.type}</span>} />
+          </div>
+
+          {/* The agenda the bot ran (derived from the meeting type). */}
+          <div className="rounded-xl border border-border p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-text-subtle" />
+              <p className="text-sm font-semibold text-text">Agenda</p>
+            </div>
+            <ol className="ml-4 list-decimal space-y-1 text-sm text-text-muted">
+              {agenda.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ol>
+          </div>
+
+          {/* AI summary — the follow-up action items live in its "## Action Items" section. */}
+          {result?.summary ? (
+            <div className="rounded-xl border border-border bg-surface-muted/40 p-4">
+              <SummaryMarkdown text={result.summary} />
+            </div>
+          ) : (
+            <p className="text-sm text-text-subtle">
+              The meeting ended, but no AI summary was produced (the summariser may be unconfigured). The full
+              transcript is available below.
+            </p>
+          )}
+
+          {result?.transcript && (
+            <details className="rounded-xl border border-border">
+              <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium text-text">
+                <FileText className="h-4 w-4 text-text-subtle" />
+                Full transcript
+              </summary>
+              <pre className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap border-t border-border px-4 py-3 font-mono text-xs leading-relaxed text-text-muted">
+                {result.transcript}
+              </pre>
+            </details>
+          )}
         </div>
       )}
     </div>

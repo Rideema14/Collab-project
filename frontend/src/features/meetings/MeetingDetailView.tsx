@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CalendarClock } from 'lucide-react';
@@ -7,6 +8,7 @@ import {
   useGetMeetingQuery,
   useCancelMeetingMutation,
   useResendInvitationsMutation,
+  useGetMeetingResultQuery,
 } from '@/store/api/backendApi';
 import { useToast } from '@/lib/toast-context';
 import { relativeTime } from '@/lib/format';
@@ -18,6 +20,7 @@ import type { Meeting } from '@/lib/types';
 import {
   RequireMeetingsAccess,
   ContextSection,
+  MeetingSummarySection,
   formatMeetingTime,
   STATUS_LABEL,
   STATUS_CLASS,
@@ -44,9 +47,28 @@ function summarizeInvites(meeting: Meeting): string {
 function Detail({ meetingId }: { meetingId: number }) {
   const { notify } = useToast();
   const router = useRouter();
-  const { data: meeting, error, isFetching } = useGetMeetingQuery(meetingId);
+  const { data: meeting, error, isFetching, refetch } = useGetMeetingQuery(meetingId);
   const [cancelMeeting, { isLoading: cancelling }] = useCancelMeetingMutation();
   const [resendInvitations, { isLoading: resending }] = useResendInvitationsMutation();
+
+  // Once a bot has been deployed, poll for the transcript + AI summary. Polling
+  // stops (interval 0) as soon as the meeting reports it ended; at that point we
+  // refetch the meeting so its status flips to 'completed' and the deploy panel
+  // gives way to the summary layout.
+  const deployed = Boolean(meeting?.deployedAt);
+  const [stopPolling, setStopPolling] = useState(false);
+  const { data: result, isLoading: resultLoading } = useGetMeetingResultQuery(meetingId, {
+    skip: !deployed,
+    pollingInterval: stopPolling ? 0 : 10000,
+  });
+  const ended = result?.ended ?? false;
+  useEffect(() => {
+    if (ended) {
+      setStopPolling(true);
+      refetch();
+    }
+  }, [ended, refetch]);
+  const completed = meeting?.status === 'completed' || ended;
 
   const status = (error as { status?: number } | undefined)?.status;
   const notFound = status === 404;
@@ -83,7 +105,7 @@ function Detail({ meetingId }: { meetingId: number }) {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <span
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white shadow-glow"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-primary-fg shadow-glow"
           style={{ background: 'var(--gradient-brand)' }}
         >
           <CalendarClock className="h-5 w-5" />
@@ -110,9 +132,16 @@ function Detail({ meetingId }: { meetingId: number }) {
           {meeting && (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_CLASS[meeting.status])}>
-                  {STATUS_LABEL[meeting.status]}
-                </span>
+                {(() => {
+                  // Reflect 'completed' the instant the meeting ends, before the
+                  // refetch that persists it lands.
+                  const shown = completed ? 'completed' : meeting.status;
+                  return (
+                    <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_CLASS[shown])}>
+                      {STATUS_LABEL[shown]}
+                    </span>
+                  );
+                })()}
                 <span className="text-xs text-text-subtle">{meeting.type}</span>
                 <span className="text-xs text-text-subtle">
                   {meeting.projects.map((p) => p.name).join(', ') || 'No projects'}
@@ -134,7 +163,8 @@ function Detail({ meetingId }: { meetingId: number }) {
                 title="Meeting Invitations"
                 subtitle={summarizeInvites(meeting)}
                 action={
-                  meeting.status !== 'cancelled' && (
+                  meeting.status !== 'cancelled' &&
+                  !completed && (
                     <Button size="sm" variant="secondary" loading={resending} onClick={handleResend}>
                       Resend Invitations
                     </Button>
@@ -179,7 +209,14 @@ function Detail({ meetingId }: { meetingId: number }) {
                 </Table>
               </Section>
 
-              {meeting.status !== 'cancelled' && <ContextSection meetingId={meeting.id} />}
+              {/* Pre-meeting context + deploy panel — hidden once completed, since
+                  the meeting is over and the page turns into a summary. */}
+              {meeting.status !== 'cancelled' && !completed && <ContextSection meetingId={meeting.id} />}
+
+              {/* After deploy: live "in progress" banner, then the completed summary. */}
+              {meeting.status !== 'cancelled' && deployed && (
+                <MeetingSummarySection meeting={meeting} result={result} loading={resultLoading} />
+              )}
 
               <div className="flex justify-end gap-2 border-t border-border pt-4">
                 <Link
@@ -188,7 +225,7 @@ function Detail({ meetingId }: { meetingId: number }) {
                 >
                   Back to Meetings
                 </Link>
-                {meeting.status !== 'cancelled' && (
+                {meeting.status !== 'cancelled' && !completed && (
                   <Button variant="danger" loading={cancelling} onClick={handleCancel}>
                     Cancel meeting
                   </Button>

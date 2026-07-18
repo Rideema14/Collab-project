@@ -1,0 +1,12 @@
+port: 7880
+bind_addresses:
+  - ""
+keys:
+  my_dev_key: my_dev_secret
+logging:
+  level: info
+
+# Add this section to restrict the WebRTC ports
+rtc:
+  port_range_start: 50000
+  port_range_end: 50050

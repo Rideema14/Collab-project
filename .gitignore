@@ -1,0 +1,40 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+venv/
+
+# Node
+node_modules/
+
+# Secrets. Bare `.env` matches at any depth (backend/.env, frontend/.env), and
+# the .local/.*.local forms cover Next's conventions. Committed example files are
+# re-included below so a clone still shows which variables are needed.
+.env
+.env.*
+*.env
+.env.local
+.env*.local
+!.env.example
+!.env.*.example
+
+# Generated meeting transcripts — these contain real meeting speech and
+# participant names. Never commit them.
+transcripts/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+# Word/Excel lock files, e.g. `~$eting Agent Latency Analysis.docx`
+~$*
+
+# Logs
+*.log
+npm-debug.log*

@@ -360,3 +360,19 @@ CREATE TABLE IF NOT EXISTS email_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_email_logs_meeting ON email_logs(meeting_id);
 CREATE INDEX IF NOT EXISTS idx_email_logs_recipient ON email_logs(meeting_id, recipient_email, created_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- Meeting results (additive, non-destructive).
+-- The transcript + AI summary produced by the external Meeting Bot once a call
+-- ends. The bot service stores these only in memory (lost on its restart), so
+-- we persist a copy here the first time it reports the meeting ended — that is
+-- what lets "View meeting details" show the summary again later. One row per
+-- meeting, upserted, same convention as meeting_context_packages.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS meeting_results (
+  meeting_id INTEGER PRIMARY KEY REFERENCES meetings(id) ON DELETE CASCADE,
+  summary TEXT,
+  transcript TEXT,
+  ended_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

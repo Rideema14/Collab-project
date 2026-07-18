@@ -61,7 +61,7 @@ export function PeopleView() {
         <button
           type="button"
           onClick={() => notify('success', 'Invites are managed from Admin → Users.')}
-          className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-white shadow-glow transition-opacity hover:opacity-90"
+          className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-primary-fg shadow-glow transition-opacity hover:opacity-90"
           style={{ background: 'var(--gradient-brand)' }}
         >
           <UserPlus className="h-4 w-4" />

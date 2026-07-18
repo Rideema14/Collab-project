@@ -113,7 +113,7 @@ function ScheduleForm() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <span
-          className="grid h-9 w-9 place-items-center rounded-xl text-white shadow-glow"
+          className="grid h-9 w-9 place-items-center rounded-xl text-primary-fg shadow-glow"
           style={{ background: 'var(--gradient-brand)' }}
         >
           <CalendarClock className="h-5 w-5" />

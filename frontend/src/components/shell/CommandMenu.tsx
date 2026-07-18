@@ -7,7 +7,6 @@ import { CornerDownLeft, List as ListIcon, Search } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCommandPaletteOpen, selectLists, selectSpaces } from '@/store/selectors';
 import { setCommandPaletteOpen } from '@/store/slices/uiSlice';
-import { setAiOpen } from '@/store/slices/aiSlice';
 import { cn } from '@/lib/design/cn';
 
 interface Item {
@@ -35,10 +34,9 @@ export function CommandMenu() {
 
   const items = useMemo<Item[]>(() => {
     const nav: Item[] = [
-      { id: 'ai', label: 'Ask AI…', hint: 'Assistant', run: () => dispatch(setAiOpen(true)) },
       { id: 'home', label: 'Go to Home', hint: 'Navigation', run: () => router.push('/home') },
       { id: 'inbox', label: 'Go to Inbox', hint: 'Navigation', run: () => router.push('/inbox') },
-      { id: 'aipage', label: 'Open AI Assistant page', hint: 'Navigation', run: () => router.push('/ai') },
+      { id: 'aipage', label: 'Ask AI…', hint: 'Assistant', run: () => router.push('/ai') },
     ];
     const listItems: Item[] = lists.map((l) => {
       const space = spaces.find((s) => s.id === l.spaceId);
@@ -102,7 +100,7 @@ export function CommandMenu() {
                   }}
                   className={cn(
                     'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm',
-                    i === active ? 'bg-primary-soft text-primary-on-soft' : 'text-text hover:bg-surface-muted'
+                    i === active ? 'bg-primary-selected text-primary-on-selected' : 'text-text hover:bg-surface-muted'
                   )}
                 >
                   <ListIcon className="h-4 w-4 shrink-0 text-text-subtle" />
