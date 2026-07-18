@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Search, UserPlus } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
-import { useGetUsersQuery } from '@/store/api/backendApi';
+import { useGetUsersQuery, useGetAdminUsersQuery, useGetAdminDashboardQuery } from '@/store/api/backendApi';
 import { selectMembersMeta, selectRoles, selectSessionUser } from '@/store/selectors';
 import { useWorkspaceStats } from '@/features/dashboard/useWorkspaceStats';
 import { useToast } from '@/lib/toast-context';
@@ -25,6 +25,19 @@ export function PeopleView() {
   const self = useAppSelector(selectSessionUser);
   const { stats } = useWorkspaceStats();
   const [query, setQuery] = useState('');
+
+  // Authoritative role is the server one that Admin edits. Only admins can read
+  // /admin/users, so gate the request on admin access (the dashboard query is the
+  // same one the sidebar already runs, so this is deduped, not a second call) and
+  // fall back to the client role for non-admins.
+  const { data: adminDashboard } = useGetAdminDashboardQuery();
+  const isAdmin = Boolean(adminDashboard);
+  const { data: adminUsers } = useGetAdminUsersQuery(undefined, { skip: !isAdmin });
+  const serverRoleByUser = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const u of adminUsers ?? []) map.set(u.id, u.role);
+    return map;
+  }, [adminUsers]);
 
   const countByName = useMemo(() => {
     const map = new Map<string, { count: number; done: number }>();
@@ -88,17 +101,26 @@ export function PeopleView() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((user) => (
-                  <MemberRow
-                    key={user.id}
-                    user={user}
-                    meta={membersMeta[user.id]}
-                    roleName={roles.find((r) => r.id === membersMeta[user.id]?.roleId)?.name}
-                    roleColor={roles.find((r) => r.id === membersMeta[user.id]?.roleId)?.color}
-                    isSelf={self?.id === user.id}
-                    counts={countByName.get(user.name)}
-                  />
-                ))}
+                {filtered.map((user) => {
+                  const serverRole = serverRoleByUser.get(user.id);
+                  const clientRole = roles.find((r) => r.id === membersMeta[user.id]?.roleId);
+                  // Prefer the server role Admin edits; borrow a matching client role's
+                  // dot color when one exists, else the brand color.
+                  const clientRoleByName = serverRole
+                    ? roles.find((r) => r.name.toLowerCase() === serverRole.toLowerCase())
+                    : undefined;
+                  return (
+                    <MemberRow
+                      key={user.id}
+                      user={user}
+                      meta={membersMeta[user.id]}
+                      roleName={serverRole ?? clientRole?.name}
+                      roleColor={(clientRoleByName ?? clientRole)?.color}
+                      isSelf={self?.id === user.id}
+                      counts={countByName.get(user.name)}
+                    />
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -147,9 +169,9 @@ function MemberRow({
       </td>
       <td className="hidden px-4 py-3 sm:table-cell">
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full" style={{ background: roleColor ?? '#94a3b8' }} />
+          <span className="h-2 w-2 rounded-full" style={{ background: roleColor ?? 'var(--color-text-subtle)' }} />
           {roleName ? (
-            <span className="text-sm text-text-muted">{roleName}</span>
+            <span className="text-sm capitalize text-text-muted">{roleName}</span>
           ) : (
             <span className="text-xs text-text-subtle">—</span>
           )}

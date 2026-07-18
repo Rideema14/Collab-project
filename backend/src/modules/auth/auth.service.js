@@ -71,7 +71,9 @@ async function login({ email, password }, requestMeta = {}) {
     throw new ApiError(403, 'This account has been suspended');
   }
 
-  await repository.recordLogin(user.id, requestMeta).catch((err) => console.error('[auth] failed to record login event:', err));
+  // Fire-and-forget: the login-history insert is telemetry, so don't make the
+  // caller wait a second remote DB round trip for it before getting their token.
+  repository.recordLogin(user.id, requestMeta).catch((err) => console.error('[auth] failed to record login event:', err));
 
   const token = signToken(user);
   return { user: shapeUser(user), token };

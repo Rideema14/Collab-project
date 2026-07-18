@@ -10,6 +10,14 @@ types.setTypeParser(types.builtins.DATE, (val) => val);
 
 const pool = new Pool({
   connectionString: env.databaseUrl,
+  // The DB is remote (Supabase), so a cold TLS handshake dominates request
+  // latency. Keep connections warm and reused instead of re-opening one per
+  // request: TCP keepalive stops idle sockets being dropped, and a longer idle
+  // timeout keeps a pooled connection around between (infrequent) logins.
+  keepAlive: true,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  max: 10,
 });
 
 pool.on('error', (err) => {

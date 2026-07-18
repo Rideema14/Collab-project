@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, CalendarDays, Video, Box, Menu, ChevronDown } from 'lucide-react';
+import { Flag, MessageSquare, Box, CalendarDays, ChevronDown, Menu, Video } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { ApiError } from '@/lib/api/client';
 
@@ -54,7 +54,7 @@ export default function KuberyaLoginPage() {
         {/* ==========================================
             LEFT: Brand copy
            ========================================== */}
-        <div className="flex w-full flex-col items-center gap-10 text-center lg:w-[42%] lg:shrink-0 lg:items-start lg:text-left">
+        <div className="flex w-full flex-col gap-10 lg:w-[42%] lg:shrink-0">
           <div>
             <h1 className="text-[2.6rem] font-black leading-[1.04] tracking-tight sm:text-6xl xl:text-[4rem]">
               Plan &amp; Meet
@@ -62,7 +62,7 @@ export default function KuberyaLoginPage() {
               with Kuberya.
             </h1>
 
-            <ul className="mt-8 flex flex-col items-center gap-4 lg:items-start">
+            <ul className="mt-8 flex flex-col gap-4">
               {['Light & Dark Mode', 'Fully Customizable', 'Well Organized', '+50 Screen'].map((label) => (
                 <li key={label} className="flex items-center gap-3 text-base font-bold">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#ffffff] text-[#080e11]">
@@ -75,7 +75,7 @@ export default function KuberyaLoginPage() {
               ))}
             </ul>
 
-            <div className="mt-10 flex items-center justify-center gap-4 lg:justify-start">
+            <div className="mt-10 flex items-center gap-4">
               <button
                 onClick={() => openModal('signup')}
                 className="rounded-full bg-[#ffffff] px-8 py-3.5 text-sm font-extrabold text-[#e76f51] shadow-[0_16px_32px_-10px_rgba(0,0,0,0.35)] transition-all hover:scale-105"
@@ -86,7 +86,7 @@ export default function KuberyaLoginPage() {
           </div>
 
           {/* Integration badges */}
-          <div className="mt-2 flex items-center justify-center gap-3 lg:justify-start">
+          <div className="mt-2 flex items-center gap-3">
             <ToolBadge>
               <Video size={18} color="#e76f51" strokeWidth={1.8} />
             </ToolBadge>
@@ -103,38 +103,90 @@ export default function KuberyaLoginPage() {
             RIGHT: Device showcase
            ========================================== */}
         <div className="relative w-full flex-1 lg:h-full">
-          {/* The laptop + phone is ONE scene that scales as a single unit (via
-              container-query units), so mobile and desktop show the exact same
-              composition — only larger or smaller. */}
-          <div
-            className="relative mx-auto w-full max-w-[520px] py-4 sm:max-w-[600px] lg:absolute lg:inset-y-0 lg:right-[-4%] lg:my-auto lg:h-fit lg:max-w-[720px] xl:right-[-8%] xl:max-w-[800px]"
-            style={{ containerType: 'inline-size' }}
-          >
-            {/* MacBook — the sizing anchor for the whole scene */}
-            <div className="relative w-full">
-              {/* Lid: dark aluminium bezel around the display */}
-              <div className="relative overflow-hidden rounded-[1.4cqw] border-[1.05cqw] border-b-0 border-[#0d1014] bg-[#0d1014] shadow-[0_6cqw_9cqw_-4cqw_rgba(8,5,2,0.5)]">
-                <div
-                  className="relative aspect-[16/10] w-full overflow-hidden bg-white"
-                  style={{ containerType: 'inline-size' }}
-                >
-                  <LaptopScreen />
-                  {/* camera notch */}
-                  <span className="absolute left-1/2 top-0 z-40 h-[2cqw] w-[8.5cqw] -translate-x-1/2 rounded-b-[1cqw] bg-[#0d1014]" />
-                  {/* display gloss */}
-                  <span className="pointer-events-none absolute inset-0 z-30 bg-gradient-to-br from-white/45 via-transparent to-black/[0.05]" />
+          <div className="relative mx-auto flex w-full max-w-[760px] items-center justify-center py-4 lg:absolute lg:inset-y-0 lg:right-[-6%] lg:mx-0 lg:max-w-none lg:justify-end xl:right-[-10%]">
+            {/* Laptop */}
+            <div className="relative w-full max-w-[680px] xl:max-w-[760px]">
+              <div className="overflow-hidden rounded-t-[1.25rem] border-[10px] border-b-0 border-[#0f1c22] bg-[#0f1c22] shadow-[0_40px_80px_-24px_rgba(20,8,0,0.45)]">
+                <div className="relative flex h-6 items-center justify-center">
+                  <span className="h-3 w-14 rounded-full bg-[#080e11]" />
+                  <span className="absolute h-1 w-1 rounded-full bg-[#3a3a42]" />
+                </div>
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#fbfbfc]">
+                  <ConnectorLines variant="laptop" />
+
+                  <div className="relative flex h-full flex-col p-5 sm:p-8">
+                    <div className="mb-6 flex items-center justify-between border-b border-[#eeeef1] pb-4">
+                      <BrandMarkDark />
+                      <div className="hidden items-center gap-6 text-[11px] font-bold text-[#8a8b93] sm:flex">
+                        <span className="flex items-center gap-1 text-[#0f1c22]">
+                          Product <ChevronDown size={12} />
+                        </span>
+                        <span>Boards</span>
+                        <span>Meetings</span>
+                        <span>Integrations</span>
+                        <span>Developers</span>
+                      </div>
+                      <Menu size={16} className="text-[#0f1c22] sm:hidden" />
+                    </div>
+
+                    <div className="relative z-10 mt-2 max-w-md lg:ml-[14%]">
+                      <h2 className="text-2xl font-black leading-[1.08] tracking-tight text-[#0f1c22] sm:text-[2rem]">
+                        Create, inspect, and
+                        <br />
+                        synthetic surveillance
+                      </h2>
+                      <p className="mt-3 max-w-xs text-[11px] leading-relaxed text-[#9497a1]">
+                        Start with a stunning homepage. Stay motivated without hurting your pocket.
+                      </p>
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between pt-6">
+                      <p className="text-[10px] font-semibold text-[#9497a1]">
+                        Want to talk or get a live demo? <span className="text-[#e76f51]">Get in touch →</span>
+                      </p>
+                      <button className="rounded-full bg-[#e76f51] px-5 py-2 text-[11px] font-bold text-[#ffffff] shadow-sm">
+                        Start for free
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              {/* Hinge line, then the silver base deck with a front cutout */}
-              <div className="mx-auto h-[0.7cqw] w-full bg-[#05070a]" />
-              <div className="relative mx-auto h-[1.7cqw] w-[113%] -translate-x-[6.5%] rounded-b-[1cqw] bg-gradient-to-b from-[#e0e3e8] via-[#c4c8cf] to-[#a3a8b0] shadow-[0_5cqw_7cqw_-3cqw_rgba(8,5,2,0.45)]">
-                <span className="absolute left-1/2 top-0 h-[52%] w-[13%] -translate-x-1/2 rounded-b-[0.7cqw] bg-gradient-to-b from-[#9a9fa8] to-[#bcc0c7]" />
-              </div>
+              {/* base wedge */}
+              <div className="mx-auto h-3.5 w-[105%] max-w-none -translate-x-[2.5%] rounded-b-[4px] bg-[#0f1c22]" />
+              <div className="mx-auto h-1 w-[70%] rounded-b-xl bg-[#0f1c22]/80" />
+            </div>
 
-              {/* iPhone — sized as a % of the laptop and laid over its lower-left
-                  corner, so the composition is identical at every screen size. */}
-              <div className="absolute bottom-[4%] left-[-4%] z-20 w-[24%] rotate-[-9deg]">
-                <PhoneMock />
+            {/* Phone, overlapping only the laptop's blank left margin — not its headline */}
+            <div className="absolute left-0 top-[38%] z-10 hidden w-28 rotate-[-14deg] sm:block sm:w-32 md:w-36 lg:left-[-15%] lg:w-44 xl:left-[-17%] xl:w-48">
+              <div className="overflow-hidden rounded-[2.2rem] border-[8px] border-[#0f1c22] bg-[#fbfbfc] shadow-[-18px_28px_50px_-14px_rgba(20,8,0,0.5)]">
+                <div className="relative flex justify-center py-1.5">
+                  <span className="h-2.5 w-14 rounded-full bg-[#0f1c22]" />
+                </div>
+                <div className="relative aspect-[9/18.3] w-full overflow-hidden bg-[#fbfbfc]">
+                  <ConnectorLines variant="phone" />
+
+                  <div className="relative flex h-full flex-col p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                      <BrandMarkDark small />
+                      <Menu size={12} className="text-[#0f1c22]" />
+                    </div>
+
+                    <h3 className="text-[13px] font-black leading-snug tracking-tight text-[#0f1c22]">
+                      Create, inspect, and apply synthetic surveillance broadly.
+                    </h3>
+                    <p className="mt-2 text-[9px] leading-relaxed text-[#9497a1]">
+                      Start with a stunning homepage. Stay motivated without hurting your pocket.
+                    </p>
+
+                    <button className="mt-3 w-fit rounded-full bg-[#e76f51] px-3.5 py-1.5 text-[9px] font-bold text-[#ffffff]">
+                      Start for free
+                    </button>
+
+                    <p className="mt-auto pb-2 text-[8px] font-semibold text-[#9497a1]">
+                      Want a live demo? <span className="text-[#e76f51]">Get in touch →</span>
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -153,9 +205,9 @@ export default function KuberyaLoginPage() {
 // ==========================================
 // BRAND MARKS — isometric cube motif
 // ==========================================
-function CubeGlyph({ stroke = '#ffffff', size = 20, className }: { stroke?: string; size?: number; className?: string }) {
+function CubeGlyph({ stroke = '#ffffff', size = 20 }: { stroke?: string; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M12 2 21 7v10l-9 5-9-5V7Z" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M3 7 12 12l9-5M12 12v10" stroke={stroke} strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
@@ -171,183 +223,11 @@ function BrandMark() {
   );
 }
 
-// ==========================================
-// DEVICE SCREENS — real marketing UI, matching the reference showcase. Text and
-// chrome are sized in cqw (container-query width) units so everything scales
-// with the device it sits in and reads the same on mobile and desktop.
-// ==========================================
-
-/**
- * Faint orange integration logos connected by flowing lines that converge into a
- * central cube — the signature motif from the reference marketing site.
- * `compact` enlarges the marks a touch for the narrower phone screen.
- */
-function IntegrationCluster({ compact = false }: { compact?: boolean }) {
-  const cube = { x: 82, y: 62 };
-  const icons = [
-    { x: 46, y: 50, bg: '#e5484d', Icon: MessageSquare },
-    { x: 44, y: 78, bg: '#0f1c22', Icon: CalendarDays },
-    { x: 63, y: 71, bg: '#e76f51', Icon: Video },
-  ];
-  const s = compact ? 1.35 : 1;
+function BrandMarkDark({ small = false }: { small?: boolean }) {
   return (
-    <div className="pointer-events-none absolute inset-0">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        {icons.map((ic, i) => (
-          <path
-            key={i}
-            d={`M ${ic.x} ${ic.y} C ${(ic.x + cube.x) / 2} ${ic.y}, ${(ic.x + cube.x) / 2} ${cube.y}, ${cube.x} ${cube.y}`}
-            fill="none"
-            stroke="#e76f51"
-            strokeWidth={compact ? 0.7 : 0.45}
-            strokeOpacity="0.55"
-          />
-        ))}
-        {[-18, -10, -2, 6, 14, 22].map((dy, i) => (
-          <path
-            key={`f-${i}`}
-            d={`M ${cube.x} ${cube.y} C ${(cube.x + 104) / 2} ${cube.y}, ${(cube.x + 104) / 2} ${cube.y + dy}, 104 ${cube.y + dy}`}
-            fill="none"
-            stroke="#e76f51"
-            strokeWidth={compact ? 0.45 : 0.28}
-            strokeOpacity="0.3"
-          />
-        ))}
-      </svg>
-      {icons.map((ic, i) => (
-        <span
-          key={i}
-          className="absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center shadow-[0_2cqw_3cqw_-1cqw_rgba(0,0,0,0.35)]"
-          style={{
-            left: `${ic.x}%`,
-            top: `${ic.y}%`,
-            width: `${6 * s}cqw`,
-            height: `${6 * s}cqw`,
-            borderRadius: `${1.7 * s}cqw`,
-            backgroundColor: ic.bg,
-          }}
-        >
-          <ic.Icon color="#ffffff" strokeWidth={2.2} style={{ width: `${3.3 * s}cqw`, height: `${3.3 * s}cqw` }} />
-        </span>
-      ))}
-      <span
-        className="absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center bg-[#f0603a] shadow-[0_3cqw_5cqw_-1cqw_rgba(231,111,81,0.55)]"
-        style={{ left: `${cube.x}%`, top: `${cube.y}%`, width: `${9.5 * s}cqw`, height: `${9.5 * s}cqw`, borderRadius: `${2.6 * s}cqw` }}
-      >
-        <Box color="#ffffff" strokeWidth={2} style={{ width: `${5.4 * s}cqw`, height: `${5.4 * s}cqw` }} />
-      </span>
-    </div>
-  );
-}
-
-function LaptopScreen() {
-  return (
-    <div className="relative h-full w-full overflow-hidden bg-white">
-      {/* Nav */}
-      <div className="flex items-center justify-between px-[4cqw] pt-[3.4cqw]">
-        <div className="flex items-center gap-[1.2cqw]">
-          <span className="grid h-[3cqw] w-[3cqw] place-items-center rounded-[0.9cqw] bg-[#0f1c22]">
-            <Box className="text-white" strokeWidth={2.4} style={{ width: '2cqw', height: '2cqw' }} />
-          </span>
-          <span className="text-[2.1cqw] font-extrabold tracking-tight text-[#0f1c22]">Kuberya</span>
-        </div>
-        <div className="flex items-center gap-[2.6cqw] text-[1.4cqw] font-semibold text-[#6b7280]">
-          <span className="flex items-center gap-[0.5cqw] text-[#0f1c22]">
-            Product <ChevronDown style={{ width: '1.4cqw', height: '1.4cqw' }} />
-          </span>
-          <span>Boards</span>
-          <span>Meetings</span>
-          <span>Integrations</span>
-          <span>Developers</span>
-        </div>
-      </div>
-
-      {/* Hero */}
-      <div className="mt-[6cqw] max-w-[60%] px-[4cqw]">
-        <h2 className="text-[5.6cqw] font-black leading-[1.02] tracking-tight text-[#0f1c22]">
-          Plan the work.
-          <br />
-          Meet with purpose.
-        </h2>
-        <p className="mt-[2.4cqw] max-w-[86%] text-[1.7cqw] leading-relaxed text-[#8a8f99]">
-          Boards, meetings, and AI summaries — your whole team, always in sync.
-        </p>
-        <div className="mt-[3.2cqw] flex items-center gap-[2.4cqw]">
-          <button className="rounded-full bg-[#e76f51] px-[3.4cqw] py-[1.5cqw] text-[1.6cqw] font-bold text-white shadow-[0_2cqw_4cqw_-1cqw_rgba(231,111,81,0.55)]">
-            Start free
-          </button>
-          <span className="text-[1.4cqw] font-medium text-[#8a8f99]">
-            Want a live demo? <span className="font-semibold text-[#e76f51]">Get in touch →</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Integration logos, lower-right */}
-      <IntegrationCluster />
-    </div>
-  );
-}
-
-function PhoneScreen() {
-  return (
-    <div className="relative h-full w-full overflow-hidden bg-white">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-[7cqw] pt-[12cqw]">
-        <div className="flex items-center gap-[2cqw]">
-          <span className="grid h-[7cqw] w-[7cqw] place-items-center rounded-[2cqw] bg-[#0f1c22]">
-            <Box className="text-white" strokeWidth={2.4} style={{ width: '4.4cqw', height: '4.4cqw' }} />
-          </span>
-          <span className="text-[5cqw] font-extrabold tracking-tight text-[#0f1c22]">Kuberya</span>
-        </div>
-        <Menu className="text-[#0f1c22]" strokeWidth={2.4} style={{ width: '5.5cqw', height: '5.5cqw' }} />
-      </div>
-
-      {/* Heading */}
-      <div className="mt-[7cqw] px-[7cqw]">
-        <h3 className="text-[8.2cqw] font-black leading-[1.05] tracking-tight text-[#0f1c22]">
-          Plan the work.
-          <br />
-          Meet with purpose.
-        </h3>
-        <p className="mt-[3.4cqw] text-[3.8cqw] leading-relaxed text-[#8a8f99]">
-          Boards, meetings, and AI summaries — your team in sync.
-        </p>
-        <button className="mt-[5cqw] rounded-full bg-[#e76f51] px-[6cqw] py-[3cqw] text-[3.8cqw] font-bold text-white">
-          Start free
-        </button>
-      </div>
-
-      {/* Integration logos */}
-      <div className="absolute inset-x-0 bottom-[9cqw] top-[54%]">
-        <IntegrationCluster compact />
-      </div>
-
-      <p className="absolute bottom-[5cqw] left-[7cqw] text-[3cqw] font-medium text-[#8a8f99]">
-        Live demo? <span className="font-semibold text-[#e76f51]">Get in touch →</span>
-      </p>
-    </div>
-  );
-}
-
-function PhoneMock() {
-  return (
-    <div className="relative" style={{ containerType: 'inline-size' }}>
-      {/* Titanium side buttons, sized relative to the phone so they scale with it */}
-      <span className="absolute -left-[1.6cqw] top-[20%] h-[7%] w-[1.4cqw] rounded-l-[0.8cqw] bg-[#0a0e13]" />
-      <span className="absolute -left-[1.6cqw] top-[31%] h-[11%] w-[1.4cqw] rounded-l-[0.8cqw] bg-[#0a0e13]" />
-      <span className="absolute -right-[1.6cqw] top-[26%] h-[14%] w-[1.4cqw] rounded-r-[0.8cqw] bg-[#0a0e13]" />
-
-      <div className="overflow-hidden rounded-[9cqw] border-[2.2cqw] border-[#15181d] bg-[#15181d] shadow-[-4cqw_7cqw_12cqw_-3cqw_rgba(8,5,2,0.5)]">
-        <div
-          className="relative aspect-[9/19] w-full overflow-hidden rounded-[6.5cqw] bg-white"
-          style={{ containerType: 'inline-size' }}
-        >
-          {/* Dynamic island */}
-          <span className="absolute left-1/2 top-[3cqw] z-30 h-[7cqw] w-[30cqw] -translate-x-1/2 rounded-full bg-[#0d1014]" />
-          <PhoneScreen />
-          <span className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-br from-white/45 via-transparent to-black/[0.05]" />
-        </div>
-      </div>
+    <div className="flex items-center gap-1.5">
+      <CubeGlyph stroke="#0f1c22" size={small ? 14 : 16} />
+      <span className={`font-extrabold tracking-tight text-[#0f1c22] ${small ? 'text-[9px]' : 'text-xs'}`}>Kuberya</span>
     </div>
   );
 }
@@ -357,6 +237,50 @@ function ToolBadge({ children }: { children: React.ReactNode }) {
     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ffffff] shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3)]">
       {children}
     </span>
+  );
+}
+
+// ==========================================
+// DECORATIVE CONNECTOR-LINE NODE CLUSTER (inside device screens)
+// ==========================================
+function ConnectorLines({ variant }: { variant: 'laptop' | 'phone' }) {
+  const nodes =
+    variant === 'laptop'
+      ? [
+          { x: 68, y: 28, size: 34, bg: '#0f1c22', Icon: Flag },
+          { x: 86, y: 46, size: 46, bg: '#e76f51', Icon: Box },
+          { x: 64, y: 64, size: 28, bg: '#0f1c22', Icon: MessageSquare },
+        ]
+      : [
+          { x: 22, y: 66, size: 22, bg: '#0f1c22', Icon: Flag },
+          { x: 46, y: 76, size: 28, bg: '#e76f51', Icon: Box },
+          { x: 70, y: 66, size: 20, bg: '#0f1c22', Icon: CalendarDays },
+        ];
+
+  return (
+    <div
+      className={`pointer-events-none absolute inset-0 hidden h-full w-full opacity-90 ${variant === 'laptop' ? 'sm:block' : 'lg:block'}`}
+    >
+      <svg aria-hidden="true" className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {nodes.map((n, i) =>
+          nodes.slice(i + 1).map((m, j) => (
+            <line key={`${i}-${j}`} x1={n.x} y1={n.y} x2={m.x} y2={m.y} stroke="#e76f51" strokeWidth="0.25" strokeOpacity="0.35" />
+          ))
+        )}
+        {nodes.map((n, i) => (
+          <line key={`edge-${i}`} x1={n.x} y1={n.y} x2="100" y2={Math.max(0, n.y - 12)} stroke="#e76f51" strokeWidth="0.2" strokeOpacity="0.22" />
+        ))}
+      </svg>
+      {nodes.map((n, i) => (
+        <span
+          key={i}
+          className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-xl shadow-[0_10px_18px_-8px_rgba(0,0,0,0.35)]"
+          style={{ left: `${n.x}%`, top: `${n.y}%`, width: n.size, height: n.size, backgroundColor: n.bg }}
+        >
+          <n.Icon size={Math.round(n.size * 0.46)} color="#ffffff" strokeWidth={2.25} />
+        </span>
+      ))}
+    </div>
   );
 }
 
