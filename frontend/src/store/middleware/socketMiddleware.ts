@@ -80,16 +80,29 @@ export function createSocketMiddleware(): Middleware {
           case 'status:changed':
             store.dispatch(receiveStatusSet(event.set));
             break;
-          case 'notification:new':
+          case 'notification:new': {
+            // A targeted notification (assignment, delete, …) is shown ONLY to the
+            // member it's about; an untargeted one goes to everyone.
+            const me = store.getState().session.user?.id;
+            if (event.targetUserId != null && event.targetUserId !== me) break;
             store.dispatch(
               pushNotification({
-                tone: 'info',
+                tone: event.tone ?? 'info',
                 title: event.title,
                 body: event.body,
+                href: event.href,
+                taskId: event.taskId,
                 createdAt: new Date().toISOString(),
               })
             );
             break;
+          }
+          case 'notification:clear': {
+            const me = store.getState().session.user?.id;
+            if (event.targetUserId != null && event.targetUserId !== me) break;
+            store.dispatch(clearNotificationsForTask(event.taskId));
+            break;
+          }
         }
       });
 

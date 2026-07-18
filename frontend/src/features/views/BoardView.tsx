@@ -72,7 +72,10 @@ export function BoardView({ listId }: { listId: string }) {
   // Stable callbacks so memoized columns/cards don't re-render on every board render
   // (notably during a drag, when dnd-kit re-renders the DndContext continuously).
   const handleOpen = useCallback((id: number) => dispatch(openTask(id)), [dispatch]);
-  const handleDelete = useCallback((id: number, title: string) => void deleteTask(id, title), [deleteTask]);
+  const handleDelete = useCallback(
+    (id: number, title: string, assigneeId?: number | null) => void deleteTask(id, title, assigneeId),
+    [deleteTask]
+  );
   const handleEditTitle = useCallback((id: number, title: string) => void updateTask(id, { title }), [updateTask]);
   const handleAddSubtask = useCallback(
     (id: number, title: string) => dispatch(addSubtask({ taskId: id, title })),
@@ -192,7 +195,7 @@ const BoardColumn = memo(function BoardColumn({
   listId: string;
   commentsByTask: Record<number, unknown[]>;
   onOpen: (id: number) => void;
-  onDelete: (id: number, title: string) => void;
+  onDelete: (id: number, title: string, assigneeId?: number | null) => void;
   onEditTitle: (id: number, title: string) => void;
   onAddSubtask: (id: number, title: string) => void;
 }) {
@@ -363,7 +366,7 @@ const SortableCard = memo(function SortableCard({
   task: TaskVM;
   commentCount: number;
   onOpen: (id: number) => void;
-  onDelete: (id: number, title: string) => void;
+  onDelete: (id: number, title: string, assigneeId?: number | null) => void;
   onEditTitle: (id: number, title: string) => void;
   onAddSubtask: (id: number, title: string) => void;
 }) {
@@ -417,7 +420,7 @@ const SortableCard = memo(function SortableCard({
         />
         <CardMenu
           onOpen={() => onOpen(task.id)}
-          onDelete={() => onDelete(task.id, task.title)}
+          onDelete={() => onDelete(task.id, task.title, task.assignee?.id ?? null)}
           onEdit={startEdit}
           onAddSubtask={() => setAddingSubtask(true)}
           accentColor={cardAccent}

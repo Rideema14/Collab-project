@@ -1,12 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { CalendarClock, Plus, Users2 } from 'lucide-react';
+import { CalendarClock, FileText, Plus, Users2 } from 'lucide-react';
 import { useGetMeetingsQuery, useDeleteMeetingMutation } from '@/store/api/backendApi';
 import { useToast } from '@/lib/toast-context';
 import { cn } from '@/lib/design/cn';
 import { Section, Table } from '@/components/ui/Section';
-import { RequireMeetingsAccess, formatMeetingTime, STATUS_LABEL, STATUS_CLASS } from './shared';
+import type { Meeting } from '@/lib/types';
+import {
+  RequireMeetingsAccess,
+  MeetingSummaryModal,
+  formatMeetingTime,
+  STATUS_LABEL,
+  STATUS_CLASS,
+} from './shared';
 
 export function MeetingsView() {
   return (
@@ -20,6 +28,7 @@ function MeetingsOverview() {
   const { notify } = useToast();
   const { data: meetings = [], isLoading } = useGetMeetingsQuery();
   const [deleteMeeting, { isLoading: deleting }] = useDeleteMeetingMutation();
+  const [summaryFor, setSummaryFor] = useState<Meeting | null>(null);
 
   async function handleDelete(id: number, title: string) {
     if (!window.confirm(`Delete "${title}" from meeting history? This can't be undone.`)) return;
@@ -96,6 +105,15 @@ function MeetingsOverview() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1.5">
+                      {m.status === 'completed' && (
+                        <button
+                          type="button"
+                          onClick={() => setSummaryFor(m)}
+                          className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs font-medium text-primary hover:bg-primary-soft"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> See Summary
+                        </button>
+                      )}
                       <Link
                         href={`/meetings/${m.id}`}
                         className="rounded border border-border px-2 py-1 text-xs text-text-muted hover:bg-glass-border"
@@ -118,6 +136,8 @@ function MeetingsOverview() {
           )}
         </Section>
       </div>
+
+      {summaryFor && <MeetingSummaryModal meeting={summaryFor} onClose={() => setSummaryFor(null)} />}
     </div>
   );
 }

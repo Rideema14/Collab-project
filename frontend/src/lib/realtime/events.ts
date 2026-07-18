@@ -21,6 +21,28 @@ export type RealtimeEvent =
   | { type: 'presence:sync'; origin: string; peer: PresencePeer }
   | { type: 'presence:leave'; origin: string; clientId: string }
   | { type: 'typing'; origin: string; taskId: number; clientId: string; typing: boolean }
-  | { type: 'notification:new'; origin: string; title: string; body?: string };
+  | {
+      type: 'notification:new';
+      origin: string;
+      /** When set, ONLY the client whose signed-in user matches this id shows the
+       *  notification (e.g. the member who was assigned/affected). Omit to
+       *  broadcast to everyone. */
+      targetUserId?: number;
+      tone?: 'info' | 'success' | 'warning';
+      title: string;
+      body?: string;
+      /** Optional in-app route to open when the notification is clicked. */
+      href?: string;
+      /** The task this is about — lets the target drop it if the task is deleted. */
+      taskId?: number;
+    }
+  | {
+      /** Remove every notification about a task (e.g. it was deleted). Same
+       *  targeting rule as notification:new. */
+      type: 'notification:clear';
+      origin: string;
+      targetUserId?: number;
+      taskId: number;
+    };
 
 export const RT_CHANNEL = 'kuberya-rt';

@@ -120,7 +120,13 @@ function Body({ listId, taskId }: { listId: string; taskId: number }) {
         <Meta label="Assignee">
           <select
             value={task.assignee?.id ?? ''}
-            onChange={(e) => updateTask(taskId, { assigneeId: e.target.value ? Number(e.target.value) : null })}
+            onChange={(e) =>
+              updateTask(
+                taskId,
+                { assigneeId: e.target.value ? Number(e.target.value) : null },
+                { title: task.title, prevAssigneeId: task.assignee?.id ?? null }
+              )
+            }
             className="w-full rounded border border-border bg-surface px-1.5 py-1 text-sm text-text"
           >
             <option value="">Unassigned</option>
@@ -227,7 +233,7 @@ function Body({ listId, taskId }: { listId: string; taskId: number }) {
       <DeleteFooter
         task={task}
         onDelete={async () => {
-          await deleteTask(taskId, task.title);
+          await deleteTask(taskId, task.title, task.assignee?.id ?? null);
           dispatch(closeTask());
         }}
       />

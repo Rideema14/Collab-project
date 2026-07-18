@@ -1,7 +1,8 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import { Check, Copy, FileText, ListChecks, Rocket, Shield, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { Check, Copy, FileText, ListChecks, Pencil, Rocket, Shield, Sparkles, Users2, X } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectMyPermissions } from '@/store/selectors';
 import {
@@ -9,11 +10,13 @@ import {
   useGenerateMeetingContextMutation,
   useDeployMeetingMutation,
   useGetMeetingDeploymentQuery,
+  useGetMeetingResultQuery,
 } from '@/store/api/backendApi';
 import { useToast } from '@/lib/toast-context';
 import { relativeTime } from '@/lib/format';
 import { cn } from '@/lib/design/cn';
 import { Button } from '@/components/ui/Button';
+import { Avatar } from '@/components/domain/AvatarStack';
 import type { EmailDeliveryStatus, Meeting, MeetingContextPayload, MeetingResult } from '@/lib/types';
 
 /**
@@ -214,6 +217,14 @@ export function ContextSection({ meetingId }: { meetingId: number }) {
   const { data: deployment } = useGetMeetingDeploymentQuery(meetingId);
   const [deploy, { isLoading: deploying }] = useDeployMeetingMutation();
 
+  // Local edits to the generated prompt. Kept in the client only (there's no
+  // "update context" endpoint) — lets you tweak the wording and copy it out.
+  // A regenerate discards the edit and shows the fresh backend narrative.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [editedNarrative, setEditedNarrative] = useState<string | null>(null);
+  const narrative = editedNarrative ?? data?.payload.narrative ?? '';
+
   const status = (error as { status?: number } | undefined)?.status;
   const notFound = status === 404;
   const otherError = Boolean(error) && !notFound;
@@ -221,6 +232,8 @@ export function ContextSection({ meetingId }: { meetingId: number }) {
   async function handleGenerate() {
     try {
       await generate(meetingId).unwrap();
+      setEditedNarrative(null);
+      setEditing(false);
       notify('success', 'Meeting context generated');
     } catch (err) {
       notify('error', err instanceof Error ? err.message : 'Failed to generate context');
@@ -270,7 +283,34 @@ export function ContextSection({ meetingId }: { meetingId: number }) {
               >
                 {deployment?.deployed ? `Deployed ${relativeTime(deployment.deployedAt!)}` : 'Not deployed'}
               </span>
-              <CopyButton text={data.payload.narrative} />
+              {editing ? (
+                <>
+                  <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditedNarrative(draft);
+                      setEditing(false);
+                    }}
+                  >
+                    <Check className="h-4 w-4" /> Save
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setDraft(narrative);
+                    setEditing(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" /> Edit
+                </Button>
+              )}
+              <CopyButton text={narrative} />
               <Button
                 size="sm"
                 loading={deploying}
@@ -283,9 +323,22 @@ export function ContextSection({ meetingId }: { meetingId: number }) {
             </div>
           </div>
 
-          <pre className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-muted/40 p-4 font-mono text-xs leading-relaxed text-text">
-            {data.payload.narrative}
-          </pre>
+          {editing ? (
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              className="h-72 w-full resize-y rounded-lg border border-primary bg-surface p-4 font-mono text-xs leading-relaxed text-text outline-none ring-2 ring-[color:var(--color-primary)]/20"
+            />
+          ) : (
+            <pre className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-muted/40 p-4 font-mono text-xs leading-relaxed text-text">
+              {narrative}
+            </pre>
+          )}
+          {editedNarrative != null && !editing && (
+            <p className="text-[11px] text-text-subtle">Edited locally — “Regenerate” restores the original.</p>
+          )}
         </div>
       )}
     </div>
@@ -473,6 +526,153 @@ export function MeetingSummarySection({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Popup summary for a finished meeting — opened by the "See Summary" action in the
+ * meetings list. Shows the three things the meeting produced: who attended
+ * (invited roster + who actually spoke), the agenda that ran, and what was
+ * concluded (the AI summary + action items). Fetches the result on open; the
+ * meeting itself (title/type/participants) is passed in from the list row.
+ */
+export function MeetingSummaryModal({ meeting, onClose }: { meeting: Meeting; onClose: () => void }) {
+  const { data: result, isLoading } = useGetMeetingResultQuery(meeting.id);
+  const ended = result?.ended ?? false;
+  const agenda = plannedAgendaForType(meeting.type);
+  const speakers = result?.speakers ?? [];
+  const spoke = new Set(speakers.map((s) => s.toLowerCase()));
+  const duration = parseDuration(result?.transcript);
+
+  return (
+    <div className="fixed inset-0 z-modal grid place-items-center bg-overlay p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-surface-raised shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Summary of ${meeting.title}`}
+      >
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+          <div className="mr-auto min-w-0">
+            <h2 className="truncate text-sm font-semibold text-text">{meeting.title}</h2>
+            <p className="truncate text-xs text-text-subtle">
+              {meeting.type} · {formatMeetingTime(meeting.scheduledAt)}
+              {result?.endedAt ? ` · ended ${relativeTime(result.endedAt)}` : ''}
+              {duration ? ` · lasted ${duration}` : ''}
+            </p>
+          </div>
+          <button type="button" aria-label="Close" onClick={onClose} className="text-text-subtle hover:text-text">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+          {isLoading && <p className="text-sm text-text-subtle">Loading summary…</p>}
+
+          {!isLoading && !ended && (
+            <p className="rounded-lg border border-border bg-surface-muted/40 px-3 py-3 text-sm text-text-subtle">
+              This meeting hasn&rsquo;t produced a summary yet — it runs once the meeting bot has been in the call.
+            </p>
+          )}
+
+          {ended && (
+            <>
+              {/* Attendance — invited roster, with who actually spoke flagged. */}
+              <section className="rounded-xl border border-border p-4">
+                <div className="mb-2.5 flex items-center gap-2">
+                  <Users2 className="h-4 w-4 text-text-subtle" />
+                  <p className="text-sm font-semibold text-text">Attendance</p>
+                  <span className="ml-auto text-xs text-text-subtle">
+                    {speakers.length}/{meeting.participants.length} spoke
+                  </span>
+                </div>
+                <ul className="space-y-1.5">
+                  {meeting.participants.map((p) => {
+                    const attended = spoke.has(p.name.toLowerCase());
+                    return (
+                      <li key={p.id} className="flex items-center gap-2.5">
+                        <Avatar person={p} size={24} />
+                        <span className="min-w-0 flex-1 truncate text-sm text-text">{p.name}</span>
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                            attended ? 'bg-success-soft text-success-fg' : 'bg-surface-muted text-text-subtle'
+                          )}
+                        >
+                          {attended ? 'Spoke' : 'No record'}
+                        </span>
+                      </li>
+                    );
+                  })}
+                  {meeting.participants.length === 0 && (
+                    <li className="text-sm text-text-subtle">No participants were invited.</li>
+                  )}
+                </ul>
+              </section>
+
+              {/* Agenda the bot ran. */}
+              <section className="rounded-xl border border-border p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <ListChecks className="h-4 w-4 text-text-subtle" />
+                  <p className="text-sm font-semibold text-text">Agenda</p>
+                </div>
+                <ol className="ml-4 list-decimal space-y-1 text-sm text-text-muted">
+                  {agenda.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ol>
+              </section>
+
+              {/* Conclusions — the AI summary (its "Action Items" section lives here too). */}
+              <section className="rounded-xl border border-border bg-surface-muted/40 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-text-subtle" />
+                  <p className="text-sm font-semibold text-text">What was concluded</p>
+                </div>
+                {result?.summary ? (
+                  <SummaryMarkdown text={result.summary} />
+                ) : (
+                  <p className="text-sm text-text-subtle">
+                    No AI summary was produced (the summariser may be unconfigured). The full transcript is below.
+                  </p>
+                )}
+              </section>
+
+              {result?.transcript && (
+                <details className="rounded-xl border border-border">
+                  <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium text-text">
+                    <FileText className="h-4 w-4 text-text-subtle" />
+                    Full transcript
+                  </summary>
+                  <pre className="max-h-[24rem] overflow-y-auto whitespace-pre-wrap border-t border-border px-4 py-3 font-mono text-xs leading-relaxed text-text-muted">
+                    {result.transcript}
+                  </pre>
+                </details>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+          <Link
+            href={`/meetings/${meeting.id}`}
+            onClick={onClose}
+            className="inline-flex h-9 items-center rounded-md border border-border-strong px-3 text-sm font-medium text-text transition-colors hover:bg-surface-muted"
+          >
+            Open full detail
+          </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

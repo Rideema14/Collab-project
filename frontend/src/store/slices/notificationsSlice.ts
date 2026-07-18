@@ -24,6 +24,8 @@ export interface AppNotification {
   createdAt: string;
   /** Optional in-app route to open when the notification is clicked. */
   href?: string;
+  /** The task this notification is about, if any — lets us drop it when the task is deleted. */
+  taskId?: number;
   read: boolean;
 }
 
@@ -75,10 +77,15 @@ const notificationsSlice = createSlice({
         title: string;
         body?: string;
         href?: string;
+        taskId?: number;
         createdAt: string;
       }) {
         return { payload: { id: nanoid(), read: false, ...input } satisfies AppNotification };
       },
+    },
+    /** Drop every notification tied to a task — used when that task is deleted. */
+    clearNotificationsForTask(state, action: PayloadAction<number>) {
+      state.items = state.items.filter((n) => n.taskId !== action.payload);
     },
     markRead(state, action: PayloadAction<string>) {
       const item = state.items.find((n) => n.id === action.payload);
@@ -105,6 +112,7 @@ const notificationsSlice = createSlice({
 
 export const {
   pushNotification,
+  clearNotificationsForTask,
   markRead,
   markAllRead,
   removeNotification,
